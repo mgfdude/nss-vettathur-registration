@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:Segoe UI,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f9;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+        <tr><td style="background:#1e3a8a;color:#ffffff;padding:22px 28px;text-align:center;">
+          <div style="display:inline-block;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 12px;font-weight:700;font-size:12px;">NSS Vettathur</div>
+          <h1 style="margin:12px 0 0;font-size:22px;">National Service Scheme (NSS) - Vettathur</h1>
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <p style="margin:0 0 14px;">Dear {{STUDENT_NAME}},</p>
+          <p style="margin:0 0 16px;line-height:1.6;">Please use the following One-Time Password (OTP) to continue your secure NSS Vettathur portal request.</p>
+          <div style="background:#eff6ff;border:1px dashed #93c5fd;border-radius:10px;padding:18px;text-align:center;margin:22px 0;">
+            <div style="font-size:13px;color:#475569;margin-bottom:8px;">Your OTP</div>
+            <div style="font-size:34px;letter-spacing:7px;font-weight:800;color:#2563eb;">{{OTP_CODE}}</div>
+          </div>
+          <table role="presentation" width="100%" style="margin:0 0 18px;color:#475569;font-size:14px;">
+            <tr><td style="padding:4px 0;"><strong>Requested:</strong> {{REQUEST_TIME}}</td></tr>
+            <tr><td style="padding:4px 0;"><strong>Valid for:</strong> {{OTP_VALIDITY}}</td></tr>
+          </table>
+          <p style="margin:0 0 10px;line-height:1.6;"><strong>Never share this OTP with anyone.</strong></p>
+          <p style="margin:0;line-height:1.6;color:#64748b;">If you did not request this OTP, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:20px 28px;background:#f8fafc;border-top:1px solid #e5e7eb;text-align:center;color:#64748b;font-size:12px;line-height:1.6;">
+          NSS Vettathur | National Service Scheme | Official Student Portal<br>
+          <a href="{{WEBSITE_URL}}" style="color:#2563eb;">{{WEBSITE_URL}}</a> | {{CONTACT_EMAIL}}<br>
+          Copyright {{YEAR}} NSS Vettathur. This is an automated email. Please do not reply.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

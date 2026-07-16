@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal - NSS Vettathur</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="dashboard-layout admin-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span>NSS Admin</span>
+      </div>
+      <ul class="sidebar-menu">
+        <li class="sidebar-item active" id="menu-applications">
+          <a href="#" onclick="switchAdminTab('applications')">Applications List</a>
+        </li>
+        <li class="sidebar-item" id="menu-settings">
+          <a href="#" onclick="switchAdminTab('settings')">Portal Settings</a>
+        </li>
+      </ul>
+      <div style="margin-top: auto;">
+        <button onclick="handleLogout()" class="btn btn-secondary btn-block">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Section: Applications List -->
+      <section id="section-applications" class="fade-in">
+        <div class="content-header admin-header">
+          <div>
+            <span class="admin-eyebrow">NSS Selection Desk</span>
+            <h1>Volunteer Applications</h1>
+            <p>Review applicants, inspect documents, score interviews, and publish decisions from one workspace.</p>
+          </div>
+          <div class="admin-header-actions">
+            <button class="btn btn-secondary" onclick="loadDashboardStats(); loadApplicationsList();">Refresh</button>
+            <button class="btn btn-primary" onclick="exportData()">Export CSV</button>
+          </div>
+        </div>
+
+        <!-- Metric Statistics Cards -->
+        <div class="stats-grid admin-stats-grid">
+          <div class="stat-card admin-stat-card">
+            <span class="stat-kicker">Total</span>
+            <h4>Registered</h4>
+            <div class="stat-value" id="stats-total">0</div>
+          </div>
+          <div class="stat-card admin-stat-card">
+            <span class="stat-kicker stat-kicker-blue">Ready</span>
+            <h4>Submitted</h4>
+            <div class="stat-value stat-blue" id="stats-submitted">0</div>
+          </div>
+          <div class="stat-card admin-stat-card">
+            <span class="stat-kicker stat-kicker-green">Final</span>
+            <h4>Selected</h4>
+            <div class="stat-value stat-green" id="stats-selected">0</div>
+          </div>
+          <div class="stat-card admin-stat-card">
+            <span class="stat-kicker stat-kicker-amber">Pending</span>
+            <h4>Waitlisted</h4>
+            <div class="stat-value stat-amber" id="stats-waitlisted">0</div>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="admin-filter-panel">
+          <div class="admin-search-wrap">
+            <label for="admin-search">Search applications</label>
+            <input type="text" id="admin-search" placeholder="App ID, email, or student name" oninput="loadApplicationsList()">
+          </div>
+          <div class="admin-filter-wrap">
+            <label for="admin-filter-status">Status</label>
+            <select id="admin-filter-status" onchange="loadApplicationsList()">
+              <option value="">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Interview Scheduled">Interview Scheduled</option>
+              <option value="Selected">Selected</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Waitlisted">Waitlisted</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Applications table container -->
+        <div class="applications-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>App ID</th>
+                <th>Full Name</th>
+                <th>Class / Roll Number</th>
+                <th>Status</th>
+                <th>Marks</th>
+                <th>Date Submitted</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="applications-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading applications list...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Portal Settings -->
+      <section id="section-settings" style="display: none;" class="fade-in">
+        <div class="content-header">
+          <h1>Portal Configuration</h1>
+          <p style="color: var(--text-muted); margin-top: 4px;">Changes take effect immediately across the portal.</p>
+        </div>
+
+        <div class="auth-card" style="max-width: 720px; margin: 0 0 28px; padding: 30px;">
+          <div id="settings-alert" class="alert alert-success" style="display: none;"></div>
+
+          <form id="settings-form">
+            <h3 style="margin-bottom: 16px; font-size: 16px; color: var(--primary);">Availability</h3>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setting-reg-open">Registration</label>
+                <select id="setting-reg-open">
+                  <option value="true">Open</option>
+                  <option value="false">Closed</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="setting-editing-open">Application Editing</label>
+                <select id="setting-editing-open">
+                  <option value="true">Open</option>
+                  <option value="false">Closed (Read-only)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setting-login-enabled">Student Login</label>
+                <select id="setting-login-enabled">
+                  <option value="true">Enabled</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="setting-selection-open">Result Publication</label>
+                <select id="setting-selection-open">
+                  <option value="true">Published &amp; Visible</option>
+                  <option value="false">Hidden from Students</option>
+                </select>
+              </div>
+            </div>
+
+            <h3 style="margin: 8px 0 16px; font-size: 16px; color: var(--primary);">Important Dates (ISO UTC)</h3>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setting-reg-start">Registration Start</label>
+                <input type="text" id="setting-reg-start" placeholder="e.g. 2026-07-01T00:00:00Z">
+              </div>
+              <div class="form-group">
+                <label for="setting-reg-deadline">Registration End</label>
+                <input type="text" id="setting-reg-deadline" placeholder="e.g. 2026-08-31T23:59:59Z">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setting-editing-deadline">Editing Deadline</label>
+                <input type="text" id="setting-editing-deadline" placeholder="e.g. 2026-08-31T23:59:59Z">
+              </div>
+              <div class="form-group">
+                <label for="setting-result-date">Result Date</label>
+                <input type="text" id="setting-result-date" placeholder="e.g. 2026-09-15T00:00:00Z">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="setting-max-applicants">Maximum Applicants</label>
+              <input type="text" id="setting-max-applicants">
+            </div>
+
+            <h3 style="margin: 8px 0 16px; font-size: 16px; color: var(--primary);">Public Contact</h3>
+
+            <div class="form-group">
+              <label for="setting-contact-officer">Programme Officer</label>
+              <input type="text" id="setting-contact-officer" placeholder="Programme Officer name">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setting-contact-email">Contact Email</label>
+                <input type="email" id="setting-contact-email" placeholder="nss@example.edu">
+              </div>
+              <div class="form-group">
+                <label for="setting-contact-phone">Contact Phone (optional)</label>
+                <input type="text" id="setting-contact-phone" placeholder="Optional phone">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Save Configuration</button>
+          </form>
+        </div>
+
+        <div class="auth-card" style="max-width: 720px; margin: 0; padding: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px;">
+            <h3 style="font-size: 16px; color: var(--primary); margin: 0;">Public Announcements</h3>
+            <button type="button" class="btn btn-secondary" id="btn-add-announcement" style="width: auto; padding: 8px 14px;">Add Notice</button>
+          </div>
+          <div id="announcements-alert" class="alert alert-danger" style="display: none;"></div>
+          <div id="announcements-admin-list">
+            <p style="color: var(--text-muted);">Loading announcements...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Review Drawer Panel -->
+  <div id="admin-review-drawer" class="drawer">
+    <div class="drawer-header">
+      <div>
+        <h2 id="drawer-title">Application Review</h2>
+        <p id="drawer-subtitle" style="color: var(--text-muted); font-size: 13px;">App ID: loading...</p>
+      </div>
+      <button onclick="closeDrawer()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+    </div>
+    
+    <div class="drawer-body">
+      <div id="drawer-alert" class="alert alert-success" style="display: none;"></div>
+
+      <div class="review-section">
+        <h4>Student Profile</h4>
+        <div class="review-field-grid">
+          <p><strong>Full Name</strong><span id="view-fullname"></span></p>
+          <p><strong>Email</strong><span id="view-email"></span></p>
+          <p><strong>Phone</strong><span id="view-phone"></span></p>
+          <p><strong>DOB</strong><span id="view-dob"></span></p>
+          <p><strong>Class/Roll Number</strong><span id="view-class"></span></p>
+          <p><strong>Guardian</strong><span id="view-guardian"></span></p>
+        </div>
+      </div>
+
+      <div class="review-section">
+        <h4>Volunteer Profile</h4>
+        <div class="review-notes">
+          <p><strong>Skills</strong><span id="view-skills"></span></p>
+          <p><strong>Interests</strong><span id="view-interests"></span></p>
+          <p><strong>Previous Experience</strong><span id="view-exp"></span></p>
+          <p><strong>Why NSS?</strong><span id="view-why"></span></p>
+        </div>
+      </div>
+
+      <div class="review-section">
+        <h4>Uploaded Documents</h4>
+        <div class="admin-doc-actions">
+          <button id="link-photo" type="button" class="btn btn-secondary">View Photo</button>
+          <button id="link-sig" type="button" class="btn btn-secondary">View Signature</button>
+          <button id="link-docs" type="button" class="btn btn-secondary" style="display: none;">View Docs</button>
+        </div>
+      </div>
+
+      <form id="review-decision-form">
+        <h4 style="margin-bottom: 8px; border-bottom: 1.5px solid var(--border); padding-bottom: 4px;">Evaluation & Decision</h4>
+        
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="eval-marks">Interview Marks (Max 100)</label>
+          <input type="text" id="eval-marks" placeholder="Enter score">
+        </div>
+
+        <div class="form-group">
+          <label for="eval-remarks">Evaluation Remarks</label>
+          <textarea id="eval-remarks" placeholder="Enter notes or feedback..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="eval-status">Application Status</label>
+          <select id="eval-status">
+            <option value="Draft">Draft</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Interview Scheduled">Interview Scheduled</option>
+            <option value="Selected">Selected</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Waitlisted">Waitlisted</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">Save Review</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="file-preview-modal" class="file-preview-modal" aria-hidden="true">
+    <div class="file-preview-dialog">
+      <div class="file-preview-header">
+        <div>
+          <h3 id="file-preview-title">Document Preview</h3>
+          <p id="file-preview-subtitle">Preview opens inside the admin workspace.</p>
+        </div>
+        <button type="button" onclick="closeFilePreview()" class="modal-close-btn">&times;</button>
+      </div>
+      <div id="file-preview-body" class="file-preview-body"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/popups.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

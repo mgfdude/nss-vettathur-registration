@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - NSS Vettathur</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="dashboard-layout" id="dashboard-layout">
+
+    <!-- Mobile Top Bar -->
+    <header class="mobile-topbar">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+      <span class="mobile-logo">NSS Vettathur</span>
+      <span id="mobile-status-badge" class="badge badge-draft" style="font-size: 11px;"></span>
+    </header>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <span>NSS Vettathur</span>
+      </div>
+      <ul class="sidebar-menu">
+        <li class="sidebar-item active" id="menu-dashboard">
+          <a href="#" onclick="switchTab('dashboard')">Dashboard</a>
+        </li>
+        <li class="sidebar-item" id="menu-application">
+          <a href="#" onclick="switchTab('application')">Application Form</a>
+        </li>
+        <li class="sidebar-item" id="menu-notifications">
+          <a href="#" onclick="switchTab('notifications')">Notifications</a>
+        </li>
+      </ul>
+      <div style="margin-top: auto;">
+        <button onclick="handleLogout()" class="btn btn-secondary btn-block">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+
+      <!-- Section: Dashboard Home -->
+      <section id="section-dashboard" class="fade-in">
+        <div class="content-header content-header--wrap">
+          <div>
+            <h1>Welcome Back!</h1>
+            <p style="color: var(--text-muted); margin-top: 4px;" id="user-welcome-sub">Application ID: Loading...</p>
+          </div>
+          <span id="application-status-badge" class="badge badge-draft">Loading...</span>
+        </div>
+        <div id="selection-banner" style="display: none;" class="alert"></div>
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 30px;">
+          <div class="stat-card">
+            <p style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Email</p>
+            <p style="margin-top: 8px; font-size: 14px; font-weight: 500; word-break: break-all;" id="display-email"></p>
+          </div>
+          <div class="stat-card">
+            <p style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Phone</p>
+            <p style="margin-top: 8px; font-size: 14px; font-weight: 500;" id="display-phone"></p>
+          </div>
+          <div class="stat-card">
+            <button onclick="switchTab('application')" class="btn btn-primary btn-block" style="justify-content: center; margin-top: 4px;">Edit Application</button>
+            <button onclick="prepareApplicationPrintout()" class="btn btn-secondary btn-block" style="justify-content: center; margin-top: 10px;">Download / Print Form</button>
+          </div>
+        </div>
+        <h2 style="margin-bottom: 15px; font-size: 18px;">Recent Notifications</h2>
+        <div id="dashboard-notifications"></div>
+      </section>
+
+      <!-- Section: Application Form -->
+      <section id="section-application" style="display: none;" class="fade-in">
+        <div class="content-header content-header--wrap">
+          <div>
+            <h1>NSS Application Form</h1>
+            <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Complete each step carefully. You can save a draft before final submission.</p>
+          </div>
+          <span id="autosave-status" class="wizard-save-status">Draft ready</span>
+        </div>
+
+        <div class="wizard-progress" aria-live="polite">
+          <span id="wizard-step-count">Step 1 of 5</span>
+          <strong id="wizard-step-title">Personal Information</strong>
+        </div>
+
+        <div class="form-section-tabs" role="tablist" aria-label="Application form steps">
+          <button type="button" class="tab-btn active" data-step="personal" onclick="showFormStep('personal')">Personal Information</button>
+          <button type="button" class="tab-btn" data-step="academic" onclick="showFormStep('academic')">Academic Information</button>
+          <button type="button" class="tab-btn" data-step="contact" onclick="showFormStep('contact')">Contact Information</button>
+          <button type="button" class="tab-btn" data-step="profile" onclick="showFormStep('profile')">Volunteer Profile</button>
+          <button type="button" class="tab-btn" data-step="uploads" onclick="showFormStep('uploads')">Uploads</button>
+        </div>
+
+        <form id="application-form">
+
+          <!-- PERSONAL INFO -->
+          <div id="form-tab-personal" class="form-section">
+            <div class="form-section-card">
+              <h3 class="form-section-title">Personal Information</h3>
+
+              <div class="form-group">
+                <label for="full_name">Full Name <span class="required">*</span></label>
+                <input type="text" id="full_name" name="full_name" placeholder="Enter your full name as per records">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="father_name">Father Name <span class="required">*</span></label>
+                  <input type="text" id="father_name" name="father_name" placeholder="Father full name">
+                </div>
+                <div class="form-group">
+                  <label for="mother_name">Mother Name <span class="required">*</span></label>
+                  <input type="text" id="mother_name" name="mother_name" placeholder="Mother full name">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="dob-read">Date of Birth</label>
+                  <input type="text" id="dob-read" readonly style="background-color: var(--surface-muted); cursor: not-allowed;" placeholder="Set during registration">
+                </div>
+                <div class="form-group">
+                  <label for="age">Age <span class="required">*</span></label>
+                  <input type="number" id="age" name="age" placeholder="Your current age" min="10" max="30">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="blood_group">Blood Group <span class="required">*</span></label>
+                  <select id="blood_group" name="blood_group">
+                    <option value="">-- Select --</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="aadhaar_number">Aadhaar Number <span class="required">*</span></label>
+                  <input type="text" id="aadhaar_number" name="aadhaar_number" placeholder="12-digit Aadhaar" maxlength="12" inputmode="numeric">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section-card">
+              <h3 class="form-section-title">Contact Numbers</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="phone_number">Phone Number <span class="required">*</span></label>
+                  <input type="tel" id="phone_number" name="phone_number" placeholder="10-digit mobile number" maxlength="10" inputmode="tel">
+                </div>
+                <div class="form-group">
+                  <label for="whatsapp_number">WhatsApp Number <span class="required">*</span></label>
+                  <input type="tel" id="whatsapp_number" name="whatsapp_number" placeholder="WhatsApp number" maxlength="10" inputmode="tel">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="guardian_mobile">Parent/Guardian Mobile Number <span class="required">*</span></label>
+                <input type="tel" id="guardian_mobile" name="guardian_mobile" placeholder="Parent or guardian mobile number" maxlength="10" inputmode="tel">
+              </div>
+            </div>
+
+            <div class="form-section-card">
+              <h3 class="form-section-title">Address Details</h3>
+              <div class="form-group">
+                <label for="house_name">House Name <span class="required">*</span></label>
+                <input type="text" id="house_name" name="house_name" placeholder="Name of your house / building">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="place">Place <span class="required">*</span></label>
+                  <input type="text" id="place" name="place" placeholder="Village / Town / Area">
+                </div>
+                <div class="form-group">
+                  <label for="pin_code">PIN Code <span class="required">*</span></label>
+                  <input type="text" id="pin_code" name="pin_code" placeholder="6-digit PIN code" maxlength="6" inputmode="numeric">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="district">District <span class="required">*</span></label>
+                <input type="text" id="district" name="district" placeholder="e.g. Thrissur, Ernakulam">
+              </div>
+            </div>
+          </div>
+
+          <!-- ACADEMIC -->
+          <div id="form-tab-academic" class="form-section" style="display: none;">
+            <div class="form-section-card">
+              <h3 class="form-section-title">Academic Information</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="class_name">Class <span class="required">*</span></label>
+                  <select id="class_name" name="class_name">
+                    <option value="">-- Select Class --</option>
+                    <option value="S1A">S1A</option>
+                    <option value="S1B">S1B</option>
+                    <option value="C1A">C1A</option>
+                    <option value="C1B">C1B</option>
+                    <option value="C1C">C1C</option>
+                    <option value="H1A">H1A</option>
+                    <option value="H1B">H1B</option>
+                    <option value="H1C">H1C</option>
+                    <option value="H1D">H1D</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="roll_number">Roll Number <span class="required">*</span></label>
+                  <input type="text" id="roll_number" name="roll_number" placeholder="Enter your class roll number" inputmode="numeric">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTACT -->
+          <div id="form-tab-contact" class="form-section" style="display: none;">
+            <div class="form-section-card">
+              <h3 class="form-section-title">Emergency Contact</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="guardian_name">Guardian Name <span class="required">*</span></label>
+                  <input type="text" id="guardian_name" name="guardian_name" placeholder="Emergency contact name">
+                </div>
+                <div class="form-group">
+                  <label for="guardian_phone">Guardian Phone <span class="required">*</span></label>
+                  <input type="tel" id="guardian_phone" name="guardian_phone" placeholder="Emergency contact phone">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="emergency_phone">Alternate Emergency Number</label>
+                <input type="tel" id="emergency_phone" name="emergency_phone" placeholder="Second emergency contact">
+              </div>
+            </div>
+          </div>
+
+          <!-- PROFILE -->
+          <div id="form-tab-profile" class="form-section" style="display: none;">
+            <div class="form-section-card">
+              <h3 class="form-section-title">Volunteer Profile</h3>
+              <div class="form-group">
+                <label for="skills">Skills &amp; Hobbies</label>
+                <textarea id="skills" name="skills" placeholder="List any relevant skills, artistic talents, coding skills, sports, etc."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="interests">Interests</label>
+                <textarea id="interests" name="interests" placeholder="Why are you interested in community service?"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="volunteer_exp">Previous Volunteering Experience</label>
+                <textarea id="volunteer_exp" name="volunteer_exp" placeholder="Mention if you were part of JRC, SPC, Scouts &amp; Guides, etc."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="essay_why_nss">Why do you want to join NSS? <span class="required">*</span></label>
+                <textarea id="essay_why_nss" name="essay_why_nss" required placeholder="Write a short paragraph about your interest in NSS." style="min-height: 140px;"></textarea>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- UPLOADS (outside form) -->
+        <div id="form-tab-uploads" class="form-section" style="display: none;">
+          <div class="form-section-card">
+            <h3 class="form-section-title">Document Uploads</h3>
+            <div id="upload-alert" class="alert alert-danger" style="display: none;"></div>
+            <div class="upload-grid">
+              <div class="upload-card" data-upload-type="photo">
+                <div class="upload-card-header">
+                  <div>
+                    <h4>Applicant Photo <span class="required">*</span></h4>
+                    <p>JPG or PNG, max 2MB</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary upload-replace-btn" onclick="triggerUpload('photo-input')">Choose</button>
+                </div>
+                <div class="upload-box" onclick="triggerUpload('photo-input')">
+                  <input type="file" id="photo-input" accept=".jpg,.jpeg,.png" style="display: none;" onchange="handleFileUpload('photo-input', 'photo')">
+                  <div id="photo-empty" class="upload-placeholder">Upload passport photo</div>
+                  <img id="photo-preview" class="upload-preview" src="" style="display: none;">
+                </div>
+                <div class="upload-progress" id="photo-progress-wrap" style="display: none;">
+                  <div id="photo-progress-bar"></div>
+                </div>
+              </div>
+              <div class="upload-card" data-upload-type="signature">
+                <div class="upload-card-header">
+                  <div>
+                    <h4>Signature <span class="required">*</span></h4>
+                    <p>JPG or PNG, max 2MB</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary upload-replace-btn" onclick="triggerUpload('sig-input')">Choose</button>
+                </div>
+                <div class="upload-box" onclick="triggerUpload('sig-input')">
+                  <input type="file" id="sig-input" accept=".jpg,.jpeg,.png" style="display: none;" onchange="handleFileUpload('sig-input', 'signature')">
+                  <div id="sig-empty" class="upload-placeholder">Upload signature</div>
+                  <img id="sig-preview" class="upload-preview" src="" style="display: none;">
+                </div>
+                <div class="upload-progress" id="signature-progress-wrap" style="display: none;">
+                  <div id="signature-progress-bar"></div>
+                </div>
+              </div>
+              <div class="upload-card" data-upload-type="docs">
+                <div class="upload-card-header">
+                  <div>
+                    <h4>Supporting Document</h4>
+                    <p>PDF, JPG, or PNG, max 2MB</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary upload-replace-btn" onclick="triggerUpload('docs-input')">Choose</button>
+                </div>
+                <div class="upload-box" onclick="triggerUpload('docs-input')">
+                  <input type="file" id="docs-input" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" onchange="handleFileUpload('docs-input', 'docs')">
+                  <div id="docs-preview" class="document-preview">PDF / Image</div>
+                </div>
+                <div class="upload-progress" id="docs-progress-wrap" style="display: none;">
+                  <div id="docs-progress-bar"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="uploaded-files-panel">
+              <h4>Uploaded Files</h4>
+              <div id="uploaded-files-list" class="uploaded-files-list">
+                <p style="color: var(--text-muted); font-size: 14px;">No files uploaded yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wizard-actions">
+          <button type="button" class="btn btn-secondary" id="wizard-back-btn" onclick="goToPreviousStep()">Back</button>
+          <button type="button" class="btn btn-primary" id="wizard-next-btn" onclick="goToNextStep()">Next</button>
+          <div class="wizard-final-actions" id="wizard-final-actions" style="display: none;">
+            <button type="button" class="btn btn-secondary" id="save-draft-btn" onclick="saveApplicationDraftNow()">Save Draft</button>
+            <button type="button" class="btn btn-secondary" onclick="prepareApplicationPrintout()">Download / Print</button>
+            <button type="button" class="btn btn-primary" id="submit-app-btn" onclick="submitApplication()">Submit Application</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Notifications -->
+      <section id="section-notifications" style="display: none;" class="fade-in">
+        <div class="content-header">
+          <h1>Notifications</h1>
+        </div>
+        <div id="notifications-list" style="display: flex; flex-direction: column; gap: 15px;"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/popups.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

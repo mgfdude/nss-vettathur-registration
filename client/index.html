@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSS Registration & Selection Portal | NSS Vettathur</title>
+  <meta name="description" content="Official NSS Vettathur Registration & Selection Portal for applicants and administrators.">
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="landing-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="landing-header">
+    <div class="landing-container landing-header-inner">
+      <a class="landing-brand" href="/index.html">
+        <img src="/images/logo.png" alt="" width="40" height="40">
+        <span>
+          <strong>NSS Vettathur</strong>
+          <small>Registration & Selection Portal</small>
+        </span>
+      </a>
+      <nav class="landing-nav" aria-label="Primary">
+        <a href="#announcements">Announcements</a>
+        <a href="#status">Status</a>
+        <a href="#dates">Dates</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <div class="landing-header-actions">
+        <a href="/login.html" class="btn btn-secondary landing-login-btn" id="header-login-btn">Login</a>
+        <a href="/register.html" class="btn btn-primary" id="header-register-btn" hidden>Register</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="landing-hero">
+      <div class="landing-container landing-hero-inner">
+        <div class="landing-hero-copy">
+          <p class="landing-kicker">National Service Scheme</p>
+          <h1>NSS Registration &amp; Selection Portal</h1>
+          <p class="landing-lead">
+            The official online portal for NSS Vettathur applicants to register, complete applications,
+            and track selection updates securely.
+          </p>
+          <div id="session-alert" class="alert alert-warning landing-session-alert" style="display: none;" role="status"></div>
+          <div class="landing-hero-actions">
+            <a href="/login.html" class="btn btn-primary" id="hero-login-btn">Login</a>
+            <a href="/register.html" class="btn btn-secondary" id="hero-register-btn" hidden>Register</a>
+          </div>
+          <div class="landing-hero-badges" id="hero-status-badges" aria-live="polite">
+            <span class="status-badge status-loading">Loading portal status…</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="announcements">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Announcements</h2>
+          <p>Latest notices, registration updates, and important information from the NSS desk.</p>
+        </div>
+        <div class="landing-announcements" id="announcements-list">
+          <p class="landing-muted">Loading announcements…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt" id="status">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Portal Status</h2>
+          <p>Live availability of registration, editing, and result publication.</p>
+        </div>
+        <div class="landing-status-grid" id="portal-status-cards">
+          <article class="landing-status-card">
+            <h3>Registration</h3>
+            <p class="status-value" id="status-registration">—</p>
+          </article>
+          <article class="landing-status-card">
+            <h3>Application Editing</h3>
+            <p class="status-value" id="status-editing">—</p>
+          </article>
+          <article class="landing-status-card">
+            <h3>Results</h3>
+            <p class="status-value" id="status-results">—</p>
+          </article>
+        </div>
+        <div id="editing-notice" class="alert alert-warning" style="display: none; margin-top: 18px;" role="status"></div>
+        <div id="results-notice" class="alert alert-success" style="display: none; margin-top: 18px;" role="status"></div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="dates">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Important Dates</h2>
+          <p>Key milestones for the current NSS selection cycle.</p>
+        </div>
+        <div class="landing-dates-grid" id="important-dates">
+          <article class="landing-date-card">
+            <h3>Registration Start</h3>
+            <p id="date-reg-start">—</p>
+          </article>
+          <article class="landing-date-card">
+            <h3>Registration End</h3>
+            <p id="date-reg-end">—</p>
+          </article>
+          <article class="landing-date-card">
+            <h3>Editing Deadline</h3>
+            <p id="date-editing">—</p>
+          </article>
+          <article class="landing-date-card">
+            <h3>Result Date</h3>
+            <p id="date-result">—</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt" id="links">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Quick Links</h2>
+          <p>Common actions for applicants and returning users.</p>
+        </div>
+        <div class="landing-links-grid">
+          <a class="landing-link-card" href="/login.html" id="quick-login">Login</a>
+          <a class="landing-link-card" href="/register.html" id="quick-register">Register</a>
+          <a class="landing-link-card" href="/login.html#forgot-password" id="quick-forgot">Forgot Password</a>
+          <a class="landing-link-card" href="/login.html#recover-app-id" id="quick-recover">Recover Application ID</a>
+          <a class="landing-link-card" href="#contact" id="quick-help">Help / Contact</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section" id="faq">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Frequently Asked Questions</h2>
+          <p>Answers to common questions about registration and selection.</p>
+        </div>
+        <div class="landing-faq" id="faq-list">
+          <p class="landing-muted">Loading FAQ…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt" id="contact">
+      <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Contact Information</h2>
+          <p>Reach the NSS Vettathur programme desk for assistance.</p>
+        </div>
+        <div class="landing-contact">
+          <p><strong>Unit</strong><span id="contact-unit">NSS Vettathur</span></p>
+          <p><strong>Programme Officer</strong><span id="contact-officer">—</span></p>
+          <p><strong>Email</strong><span id="contact-email">—</span></p>
+          <p id="contact-phone-row"><strong>Phone</strong><span id="contact-phone">—</span></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="landing-footer">
+    <div class="landing-container landing-footer-inner">
+      <p>&copy; <span id="footer-year"></span> NSS Vettathur. All rights reserved.</p>
+      <p>National Service Scheme · Registration &amp; Selection Portal</p>
+    </div>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/landing.js"></script>
+</body>
+</html>

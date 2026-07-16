@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - NSS Vettathur Selection Portal</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card fade-in">
+      <div class="auth-header">
+        <p style="margin-bottom: 10px;"><a href="/index.html" style="color: var(--text-muted); text-decoration: none; font-size: 13px;">← Back to Home</a></p>
+        <h1>NSS Vettathur</h1>
+        <p>Registration & Selection Portal</p>
+      </div>
+
+      <div id="alert-box" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="app_id">Application ID</label>
+          <input type="text" id="app_id" required placeholder="e.g., NSS26-9999" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label for="password">Password</label>
+            <a href="#forgot-password" id="forgot-password-link" style="font-size: 13px; color: var(--primary); text-decoration: none;">Forgot Password?</a>
+          </div>
+          <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      </form>
+
+      <div style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+        New Applicant? <a href="/register.html" id="login-register-link" style="color: var(--primary); font-weight: 600; text-decoration: none;">Register Here</a>
+      </div>
+      <div style="text-align: center; margin-top: 10px; font-size: 14px;">
+        <a href="#recover-app-id" id="forgot-app-id-link" style="color: var(--primary); font-weight: 600; text-decoration: none;">Forgot Application ID?</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="forgot-password-modal" class="auth-modal">
+    <div class="auth-card fade-in" style="position: relative;">
+      <button id="close-modal" class="modal-close-btn" type="button">&times;</button>
+
+      <div class="auth-header">
+        <h2>Reset Password</h2>
+        <p id="forgot-subtext">Enter your Application ID to receive an OTP.</p>
+      </div>
+
+      <div id="forgot-alert" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="forgot-step-1">
+        <div class="form-group">
+          <label for="forgot-identifier">Application ID</label>
+          <input type="text" id="forgot-identifier" required placeholder="Enter your Application ID">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Request OTP</button>
+      </form>
+
+      <form id="forgot-step-2" style="display: none;">
+        <div class="form-group">
+          <label>OTP Code</label>
+          <div class="otp-input-group" data-otp-target="forgot-otp"></div>
+          <input type="hidden" id="forgot-otp" required>
+          <div class="otp-actions">
+            <button type="button" id="forgot-resend-otp-btn" class="link-button">Resend OTP</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="forgot-new-pass">New Password</label>
+          <input type="password" id="forgot-new-pass" required placeholder="Min 8 chars, 1 uppercase, 1 symbol">
+        </div>
+        <div class="form-group">
+          <label for="forgot-confirm-pass">Confirm Password</label>
+          <input type="password" id="forgot-confirm-pass" required placeholder="Confirm new password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="forgot-app-id-modal" class="auth-modal">
+    <div class="auth-card fade-in" style="position: relative;">
+      <button id="close-app-id-modal" class="modal-close-btn" type="button">&times;</button>
+
+      <div class="auth-header">
+        <h2>Recover Application ID</h2>
+        <p id="app-id-subtext">Enter your registered email and date of birth to receive an OTP.</p>
+      </div>
+
+      <div id="app-id-alert" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="app-id-step-1">
+        <div class="form-group">
+          <label for="app-id-email">Registered Email</label>
+          <input type="email" id="app-id-email" required placeholder="name@email.com">
+        </div>
+        <div class="form-group">
+          <label for="app-id-dob">Date of Birth</label>
+          <input type="date" id="app-id-dob" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Request OTP</button>
+      </form>
+
+      <form id="app-id-step-2" style="display: none;">
+        <div class="form-group">
+          <label>OTP Code</label>
+          <div class="otp-input-group" data-otp-target="app-id-otp"></div>
+          <input type="hidden" id="app-id-otp" required>
+          <div class="otp-actions">
+            <button type="button" id="app-id-resend-otp-btn" class="link-button">Resend OTP</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Recover Application ID</button>
+      </form>
+
+      <div id="app-id-success" style="display: none; text-align: center;">
+        <p style="color: var(--text-muted); margin-bottom: 12px;">Your Application ID is</p>
+        <div id="recovered-app-id" style="font-size: 24px; font-weight: 700; background: var(--primary-light); color: var(--primary); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px;"></div>
+        <button type="button" id="use-recovered-app-id" class="btn btn-primary btn-block">Use this ID</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/popups.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - NSS Vettathur Selection Portal</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="auth-container">
+    <!-- Registration Closed State -->
+    <div id="registration-closed" class="auth-card fade-in" style="max-width: 560px; display: none; text-align: center;">
+      <div class="auth-header">
+        <p style="margin-bottom: 10px;"><a href="/index.html" style="color: var(--text-muted); text-decoration: none; font-size: 13px;">← Back to Home</a></p>
+        <h1>Registration Closed</h1>
+        <p>NSS Vettathur Selection Portal</p>
+      </div>
+      <div class="alert alert-warning" style="display: flex; text-align: left;">
+        New student registrations are not being accepted at this time.
+        Please check the home page for important dates and announcements.
+      </div>
+      <p style="color: var(--text-muted); font-size: 14px; margin: 18px 0 24px;">
+        If you already have an Application ID, you can still sign in to view your application.
+      </p>
+      <a href="/login.html" class="btn btn-primary btn-block">Go to Login</a>
+      <a href="/index.html" class="btn btn-secondary btn-block" style="margin-top: 10px;">Return to Home</a>
+    </div>
+
+    <div id="registration-open" class="auth-card fade-in" style="max-width: 600px; display: none;">
+      <div class="auth-header">
+        <p style="margin-bottom: 10px;"><a href="/index.html" style="color: var(--text-muted); text-decoration: none; font-size: 13px;">← Back to Home</a></p>
+        <h1>NSS Registration</h1>
+        <p>Step 1 of 3: Verification Details</p>
+      </div>
+
+      <div id="alert-box" class="alert alert-danger" style="display: none;"></div>
+
+      <!-- Step 1 Form -->
+      <form id="register-step-1">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" required placeholder="name@email.com">
+          </div>
+          <div class="form-group">
+            <label for="confirmEmail">Confirm Email</label>
+            <input type="email" id="confirmEmail" required placeholder="name@email.com">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" required placeholder="10-digit number">
+          </div>
+          <div class="form-group">
+            <label for="confirmPhone">Confirm Phone</label>
+            <input type="tel" id="confirmPhone" required placeholder="10-digit number">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" required>
+          </div>
+          <div class="form-group">
+            <label for="confirmDob">Confirm DoB</label>
+            <input type="date" id="confirmDob" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Continue</button>
+      </form>
+
+      <!-- Step 2 Form (OTP Screen) -->
+      <form id="register-step-2" style="display: none;">
+        <p style="margin-bottom: 20px; text-align: center; color: var(--text-muted);">
+          Please verify your email: <span id="display-otp-email" style="font-weight: 600; color: var(--text);"></span>. Click below to send the code.
+        </p>
+        <div class="form-group">
+          <label>OTP Verification Code</label>
+          <div class="otp-input-group" data-otp-target="otp"></div>
+          <input type="hidden" id="otp" required>
+          <div class="otp-actions">
+            <button type="button" id="resend-otp-btn" class="link-button">Send OTP</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password">Create Password</label>
+          <input type="password" id="password" required placeholder="Min 8 chars, 1 uppercase, 1 symbol">
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" required placeholder="Repeat your password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Complete Registration</button>
+      </form>
+
+      <!-- Step 3 (Success Screen) -->
+      <div id="register-success" style="display: none; text-align: center;">
+        <div style="font-size: 60px; color: var(--success); margin-bottom: 20px;">✓</div>
+        <h2 style="margin-bottom: 10px; color: var(--primary);">Registration Successful!</h2>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">
+          Your unique NSS Application ID has been generated:
+        </p>
+        <div id="generated-app-id" style="font-size: 24px; font-weight: 700; background: var(--primary-light); color: var(--primary); padding: 15px; border-radius: var(--radius-md); border: 1px solid hsl(var(--primary-hue), 85%, 90%); margin-bottom: 24px; letter-spacing: 1px;">
+          NSS26-0001
+        </div>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">
+          Please write this down or copy it. You must use this ID to sign in.
+        </p>
+        <a href="/login.html" class="btn btn-primary btn-block">Go to Login</a>
+      </div>
+
+      <div id="signin-footer" style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+        Already have an account? <a href="/login.html" style="color: var(--primary); font-weight: 600; text-decoration: none;">Login here</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/popups.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const closedEl = document.getElementById('registration-closed');
+      const openEl = document.getElementById('registration-open');
+      try {
+        const res = await fetch('/api/portal/status');
+        const status = await res.json();
+        if (status.registrationOpen) {
+          openEl.style.display = 'block';
+        } else {
+          closedEl.style.display = 'block';
+        }
+      } catch (error) {
+        closedEl.style.display = 'block';
+        closedEl.querySelector('.alert').textContent =
+          'Unable to verify registration status. Please return to the home page and try again.';
+      }
+    });
+  </script>
+</body>
+</html>
