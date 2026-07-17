@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { authenticateToken, requireRole } = require('../middlewares/auth');
+const { authenticateToken, requireRole, requirePortalRole } = require('../middlewares/auth');
 
 // All admin routes require authentication and 'admin' / 'superadmin' roles
 router.use(authenticateToken);
 router.use(requireRole(['admin', 'superadmin']));
+router.use(requirePortalRole('admin'));
 
 router.get('/applications', adminController.getApplications);
 router.get('/applications/:id', adminController.getApplicationById);

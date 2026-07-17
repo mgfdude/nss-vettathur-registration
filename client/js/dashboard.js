@@ -176,15 +176,6 @@ async function loadApplicationForm() {
     // Read-only Lock Checks
     if (currentStatus !== 'Draft' || window.__editingOpen === false) {
       lockFormFields();
-      if (currentStatus === 'Draft' && window.__editingOpen === false) {
-        const statusEl = document.getElementById('autosave-status');
-        if (statusEl) {
-          statusEl.textContent = 'Editing Closed (Read-only)';
-          statusEl.style.color = 'var(--warning)';
-        }
-        const submitBtn = document.getElementById('submit-app-btn');
-        if (submitBtn) submitBtn.textContent = 'Editing Closed';
-      }
     }
 
     updateWizardStep();
@@ -201,13 +192,25 @@ function lockFormFields() {
       input.disabled = true;
     });
   }
-  document.getElementById('submit-app-btn').disabled = true;
-  document.getElementById('submit-app-btn').textContent = 'Submitted';
-  document.getElementById('save-draft-btn').disabled = true;
-  document.getElementById('wizard-next-btn').disabled = true;
-  document.getElementById('autosave-status').textContent = 'Application Locked';
-  document.getElementById('autosave-status').style.color = 'var(--text-muted)';
-  
+
+  const isEditingClosedDraft = currentStatus === 'Draft' && window.__editingOpen === false;
+  const submitBtn = document.getElementById('submit-app-btn');
+  const saveBtn = document.getElementById('save-draft-btn');
+  const statusEl = document.getElementById('autosave-status');
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = isEditingClosedDraft ? 'Editing Closed' : 'Submitted';
+  saveBtn.disabled = true;
+
+  // Keep wizard navigation available so students can still view all steps read-only
+  const nextBtn = document.getElementById('wizard-next-btn');
+  if (nextBtn) nextBtn.disabled = false;
+
+  if (statusEl) {
+    statusEl.textContent = isEditingClosedDraft ? 'Editing Closed (Read-only)' : 'Application Locked';
+    statusEl.style.color = isEditingClosedDraft ? 'var(--warning)' : 'var(--text-muted)';
+  }
+
   // Disable uploads clicks
   const boxes = document.querySelectorAll('.upload-box');
   boxes.forEach(b => {

@@ -3,11 +3,23 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { authenticateToken } = require('../middlewares/auth');
 const { validateRegistrationInitiate, validateRegistrationVerify } = require('../middlewares/validation');
-const { otpRateLimiter } = require('../middlewares/rateLimiter');
+const { otpRateLimiter, loginAttemptLimiter } = require('../middlewares/rateLimiter');
+const { requireRegistrationOpen } = require('../middlewares/portalGates');
 
-router.post('/register/initiate', otpRateLimiter, validateRegistrationInitiate, authController.registerInitiate);
-router.post('/register/verify', validateRegistrationVerify, authController.registerVerify);
-router.post('/login', authController.login);
+router.post(
+  '/register/initiate',
+  otpRateLimiter,
+  requireRegistrationOpen,
+  validateRegistrationInitiate,
+  authController.registerInitiate
+);
+router.post(
+  '/register/verify',
+  requireRegistrationOpen,
+  validateRegistrationVerify,
+  authController.registerVerify
+);
+router.post('/login', loginAttemptLimiter, authController.login);
 router.post('/refresh', authController.refresh);
 router.get('/me', authenticateToken, authController.me);
 router.post('/forgot-password/initiate', otpRateLimiter, authController.forgotPasswordInitiate);

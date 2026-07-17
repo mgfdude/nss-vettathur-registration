@@ -1,5 +1,8 @@
 const db = require('../../../database/connection');
 const { sendMail } = require('../utils/email');
+const { isSelectionOpen, isTruthy } = require('../utils/portalSettings');
+
+const FINAL_RESULT_STATUSES = ['Selected', 'Rejected', 'Waitlisted'];
 
 const statusEmailTemplates = {
   'Under Review': {
@@ -23,6 +26,82 @@ const statusEmailTemplates = {
     subject: 'NSS Vettathur Application Waitlisted'
   }
 };
+
+async function notifyApplicationStatus(app, user, status) {
+  const isFinalResult = FINAL_RESULT_STATUSES.includes(status);
+  const selectionOpen = await isSelectionOpen();
+
+  // Final selection outcomes stay private until result publication is enabled
+  if (isFinalResult && !selectionOpen) {
+    await db('notifications').insert({
+      user_id: app.user_id,
+      title: 'Application Update',
+      message: 'Your application has been reviewed. Final selection results will appear on your dashboard once they are published.'
+    });
+    return;
+  }
+
+  await db('notifications').insert({
+    user_id: app.user_id,
+    title: `Status Update: ${status}`,
+    message: `Your application status has been updated to "${status}".`
+  });
+
+  const statusMail = statusEmailTemplates[status];
+  if (!statusMail || !user?.email) return;
+
+  try {
+    const studentName = app.full_name || `${app.first_name || ''} ${app.last_name || ''}`.trim() || 'Student';
+    await sendMail(user.email, statusMail.subject, statusMail.template, {
+      STUDENT_NAME: studentName,
+      APP_ID: user.app_id,
+      BATCH: app.class_name || 'NSS Vettathur',
+      SELECTION_STATUS: status === 'Rejected' ? 'Not Selected' : status
+    });
+  } catch (mailErr) {
+    console.error('Failed to send status email:', mailErr);
+  }
+}
+
+async function publishDeferredResultNotifications() {
+  const apps = await db('applications')
+    .join('users', 'applications.user_id', 'users.id')
+    .whereIn('applications.status', FINAL_RESULT_STATUSES)
+    .select(
+      'applications.id',
+      'applications.status',
+      'applications.full_name',
+      'applications.first_name',
+      'applications.last_name',
+      'applications.class_name',
+      'applications.user_id',
+      'users.email',
+      'users.app_id'
+    );
+
+  for (const app of apps) {
+    await db('notifications').insert({
+      user_id: app.user_id,
+      title: `Status Update: ${app.status}`,
+      message: `Your application status has been updated to "${app.status}".`
+    });
+
+    const statusMail = statusEmailTemplates[app.status];
+    if (!statusMail || !app.email) continue;
+
+    try {
+      const studentName = app.full_name || `${app.first_name || ''} ${app.last_name || ''}`.trim() || 'Student';
+      await sendMail(app.email, statusMail.subject, statusMail.template, {
+        STUDENT_NAME: studentName,
+        APP_ID: app.app_id,
+        BATCH: app.class_name || 'NSS Vettathur',
+        SELECTION_STATUS: app.status === 'Rejected' ? 'Not Selected' : app.status
+      });
+    } catch (mailErr) {
+      console.error('Failed to send published result email:', mailErr);
+    }
+  }
+}
 
 async function getApplications(req, res) {
   try {
@@ -114,28 +193,8 @@ async function updateApplicationStatus(req, res) {
 
     await db('applications').where({ id }).update(updates);
 
-    // Create notifications for students on status change
     if (status) {
-      await db('notifications').insert({
-        user_id: app.user_id,
-        title: `Status Update: ${status}`,
-        message: `Your application status has been updated to "${status}".`
-      });
-
-      const statusMail = statusEmailTemplates[status];
-      if (statusMail) {
-        try {
-          const studentName = app.full_name || `${app.first_name || ''} ${app.last_name || ''}`.trim() || 'Student';
-          await sendMail(user.email, statusMail.subject, statusMail.template, {
-            STUDENT_NAME: studentName,
-            APP_ID: user.app_id,
-            BATCH: app.class_name || 'NSS Vettathur',
-            SELECTION_STATUS: status === 'Rejected' ? 'Not Selected' : status
-          });
-        } catch (mailErr) {
-          console.error('Failed to send status email:', mailErr);
-        }
-      }
+      await notifyApplicationStatus(app, user, status);
     }
 
     res.json({ message: 'Application updated successfully.' });
@@ -197,6 +256,9 @@ async function updateSettings(req, res) {
   try {
     const updates = req.body; // Key-value object
     const now = new Date();
+    const previousSelection = await db('settings').where({ key: 'selection_open' }).first();
+    const wasSelectionOpen = previousSelection ? isTruthy(previousSelection.value) : false;
+
     for (const [key, value] of Object.entries(updates)) {
       const existing = await db('settings').where({ key }).first();
       if (existing) {
@@ -214,6 +276,15 @@ async function updateSettings(req, res) {
         });
       }
     }
+
+    const willPublishResults = Object.prototype.hasOwnProperty.call(updates, 'selection_open')
+      && isTruthy(updates.selection_open)
+      && !wasSelectionOpen;
+
+    if (willPublishResults) {
+      await publishDeferredResultNotifications();
+    }
+
     res.json({ message: 'Settings updated successfully.' });
   } catch (error) {
     console.error('Admin update settings error:', error);

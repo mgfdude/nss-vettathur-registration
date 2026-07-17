@@ -9,6 +9,7 @@ module.exports = {
   refreshTokenCookieMaxAge: parseInt(process.env.REFRESH_TOKEN_COOKIE_MAX_AGE, 10) || 7 * 24 * 60 * 60 * 1000,
   portalUrl: process.env.PORTAL_URL || `http://localhost:${process.env.PORT || 3000}`,
   contactEmail: process.env.CONTACT_EMAIL || 'techora@gmail.com',
+  recoveryEmail: process.env.RECOVERY_EMAIL || process.env.CONTACT_EMAIL || 'techora2008@gmail.com',
   email: {
     host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
     port: parseInt(process.env.EMAIL_PORT) || 587,

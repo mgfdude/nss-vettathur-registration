@@ -1,5 +1,6 @@
 const { verifyToken } = require('../utils/auth');
 const db = require('../../../database/connection');
+const { isAdminRole, isStudentRole } = require('../utils/authRoles');
 
 async function authenticateToken(req, res, next) {
   // Check auth header or cookie
@@ -43,7 +44,26 @@ function requireRole(roles) {
   };
 }
 
+function requirePortalRole(portal) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    if (portal === 'student' && !isStudentRole(req.user.role)) {
+      return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
+    }
+
+    if (portal === 'admin' && !isAdminRole(req.user.role)) {
+      return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
+    }
+
+    next();
+  };
+}
+
 module.exports = {
   authenticateToken,
-  requireRole
+  requireRole,
+  requirePortalRole
 };

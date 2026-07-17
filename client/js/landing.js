@@ -48,7 +48,49 @@ function setRegisterVisibility(isOpen) {
   });
 }
 
+function setLoginAvailability(isEnabled) {
+  window.portalLoginEnabled = isEnabled;
+
+  ['header-login-btn', 'hero-login-btn', 'quick-login'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (isEnabled) {
+      el.hidden = false;
+      el.removeAttribute('aria-disabled');
+      el.classList.remove('is-disabled');
+      if (el.tagName === 'A') el.href = '/login.html';
+      el.title = '';
+    } else {
+      el.hidden = false;
+      el.classList.add('is-disabled');
+      el.setAttribute('aria-disabled', 'true');
+      el.href = '#';
+      el.title = 'Login is not available yet';
+      if (id === 'quick-login') {
+        el.textContent = 'Login (Coming Soon)';
+      }
+    }
+  });
+
+  ['quick-forgot', 'quick-recover'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !isEnabled;
+    if (!isEnabled) {
+      el.style.display = 'none';
+    } else {
+      el.style.display = '';
+    }
+  });
+}
+
 async function redirectIfLoggedIn(event) {
+  if (window.portalLoginEnabled === false) {
+    if (event) event.preventDefault();
+    Popup.warning('Login is not available yet. Please check back later.', 'Login unavailable');
+    return;
+  }
+
   const token = auth.getToken();
   if (!token) return;
 
@@ -202,6 +244,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const forgot = document.getElementById('quick-forgot');
   if (forgot) {
     forgot.addEventListener('click', (e) => {
+      if (window.portalLoginEnabled === false) {
+        e.preventDefault();
+        Popup.warning('Login is not available yet. Please check back later.', 'Login unavailable');
+        return;
+      }
       e.preventDefault();
       window.location.href = '/login.html#forgot-password';
     });
@@ -210,6 +257,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const recover = document.getElementById('quick-recover');
   if (recover) {
     recover.addEventListener('click', (e) => {
+      if (window.portalLoginEnabled === false) {
+        e.preventDefault();
+        Popup.warning('Login is not available yet. Please check back later.', 'Login unavailable');
+        return;
+      }
       e.preventDefault();
       window.location.href = '/login.html#recover-app-id';
     });
@@ -221,6 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!res.ok) throw new Error(data.error || 'Failed to load portal status.');
       return data;
     });
+    setLoginAvailability(status.loginEnabled);
     renderPortalStatus(status);
   } catch (error) {
     const badges = document.getElementById('hero-status-badges');

@@ -158,27 +158,32 @@
               </div>
             </div>
 
-            <h3 style="margin: 8px 0 16px; font-size: 16px; color: var(--primary);">Important Dates (ISO UTC)</h3>
+            <h3 style="margin: 8px 0 16px; font-size: 16px; color: var(--primary);">Important Dates</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin: -8px 0 16px;">
+              Dates are stored in UTC. Leave blank if not applicable. Registration stays closed outside the start/end window even when set to Open.
+            </p>
+
+            <div id="effective-status-preview" class="alert alert-warning" style="display: none; margin-bottom: 18px;" role="status"></div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="setting-reg-start">Registration Start</label>
-                <input type="text" id="setting-reg-start" placeholder="e.g. 2026-07-01T00:00:00Z">
+                <input type="datetime-local" id="setting-reg-start">
               </div>
               <div class="form-group">
                 <label for="setting-reg-deadline">Registration End</label>
-                <input type="text" id="setting-reg-deadline" placeholder="e.g. 2026-08-31T23:59:59Z">
+                <input type="datetime-local" id="setting-reg-deadline">
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="setting-editing-deadline">Editing Deadline</label>
-                <input type="text" id="setting-editing-deadline" placeholder="e.g. 2026-08-31T23:59:59Z">
+                <input type="datetime-local" id="setting-editing-deadline">
               </div>
               <div class="form-group">
                 <label for="setting-result-date">Result Date</label>
-                <input type="text" id="setting-result-date" placeholder="e.g. 2026-09-15T00:00:00Z">
+                <input type="datetime-local" id="setting-result-date">
               </div>
             </div>
 

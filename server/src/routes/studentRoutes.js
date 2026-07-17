@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const studentController = require('../controllers/studentController');
-const { authenticateToken, requireRole } = require('../middlewares/auth');
+const { authenticateToken, requireRole, requirePortalRole } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
 
 // All student routes require authentication and 'student' role
 router.use(authenticateToken);
 router.use(requireRole(['student']));
+router.use(requirePortalRole('student'));
 
 router.get('/dashboard', studentController.getDashboardData);
 router.get('/application', studentController.getApplication);

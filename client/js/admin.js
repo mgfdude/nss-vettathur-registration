@@ -257,16 +257,61 @@ async function loadSettings() {
     document.getElementById('setting-editing-open').value = settings.editing_open || 'true';
     document.getElementById('setting-login-enabled').value = settings.login_enabled || 'true';
     document.getElementById('setting-selection-open').value = settings.selection_open || 'false';
-    document.getElementById('setting-reg-start').value = settings.registration_start || '';
-    document.getElementById('setting-reg-deadline').value = settings.registration_deadline || '';
-    document.getElementById('setting-editing-deadline').value = settings.editing_deadline || '';
-    document.getElementById('setting-result-date').value = settings.result_date || '';
+    document.getElementById('setting-reg-start').value = isoToDatetimeLocal(settings.registration_start);
+    document.getElementById('setting-reg-deadline').value = isoToDatetimeLocal(settings.registration_deadline);
+    document.getElementById('setting-editing-deadline').value = isoToDatetimeLocal(settings.editing_deadline);
+    document.getElementById('setting-result-date').value = isoToDatetimeLocal(settings.result_date);
     document.getElementById('setting-max-applicants').value = settings.max_applicants || '100';
     document.getElementById('setting-contact-officer').value = settings.contact_officer || '';
     document.getElementById('setting-contact-email').value = settings.contact_email || '';
     document.getElementById('setting-contact-phone').value = settings.contact_phone || '';
+    await refreshEffectiveStatusPreview();
   } catch (err) {
     console.error('Failed to load settings:', err);
+  }
+}
+
+function isoToDatetimeLocal(isoValue) {
+  if (!isoValue) return '';
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function datetimeLocalToIso(value) {
+  if (!value || !String(value).trim()) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+}
+
+async function refreshEffectiveStatusPreview() {
+  const preview = document.getElementById('effective-status-preview');
+  if (!preview) return;
+
+  try {
+    const status = await fetch('/api/portal/status').then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to load live status.');
+      return data;
+    });
+
+    preview.style.display = 'flex';
+    preview.className = 'alert alert-warning';
+    preview.innerHTML = `
+      <span>
+        <strong>Live effective status:</strong>
+        Registration ${status.registrationOpen ? 'Open' : 'Closed'} ·
+        Editing ${status.editingOpen ? 'Open' : 'Closed'} ·
+        Results ${status.selectionOpen ? 'Published' : 'Hidden'} ·
+        Login ${status.loginEnabled ? 'Enabled' : 'Disabled'}
+      </span>
+    `;
+  } catch (err) {
+    preview.style.display = 'flex';
+    preview.className = 'alert alert-danger';
+    preview.textContent = err.message;
   }
 }
 
@@ -281,10 +326,10 @@ async function handleSettingsSave(e) {
     editing_open: document.getElementById('setting-editing-open').value,
     login_enabled: document.getElementById('setting-login-enabled').value,
     selection_open: document.getElementById('setting-selection-open').value,
-    registration_start: document.getElementById('setting-reg-start').value.trim(),
-    registration_deadline: document.getElementById('setting-reg-deadline').value.trim(),
-    editing_deadline: document.getElementById('setting-editing-deadline').value.trim(),
-    result_date: document.getElementById('setting-result-date').value.trim(),
+    registration_start: datetimeLocalToIso(document.getElementById('setting-reg-start').value),
+    registration_deadline: datetimeLocalToIso(document.getElementById('setting-reg-deadline').value),
+    editing_deadline: datetimeLocalToIso(document.getElementById('setting-editing-deadline').value),
+    result_date: datetimeLocalToIso(document.getElementById('setting-result-date').value),
     max_applicants: document.getElementById('setting-max-applicants').value.trim(),
     contact_officer: document.getElementById('setting-contact-officer').value.trim(),
     contact_email: document.getElementById('setting-contact-email').value.trim(),
@@ -296,9 +341,10 @@ async function handleSettingsSave(e) {
     await api.patch('/admin/settings', payload);
 
     Popup.closeLoading();
-    alertBox.textContent = 'Configuration settings saved successfully.';
+    alertBox.textContent = 'Configuration settings saved successfully. Changes are live immediately.';
     alertBox.style.display = 'flex';
     Popup.success('Portal settings have been updated.', 'Settings saved');
+    await refreshEffectiveStatusPreview();
   } catch (err) {
     Popup.closeLoading();
     alertBox.className = 'alert alert-danger';

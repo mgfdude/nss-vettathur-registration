@@ -299,7 +299,7 @@ async function getDashboardData(req, res) {
     const notifications = await db('notifications')
       .where({ user_id: req.user.id })
       .orderBy('created_at', 'desc')
-      .limit(10);
+      .limit(20);
 
     const [selectionOpen, editingOpen, registrationOpen] = await Promise.all([
       isSelectionOpen(),
@@ -307,12 +307,19 @@ async function getDashboardData(req, res) {
       isRegistrationOpen()
     ]);
 
+    const resultLeakPattern = /\b(Selected|Rejected|Waitlisted|Not Selected)\b/i;
+    const visibleNotifications = selectionOpen
+      ? notifications.slice(0, 10)
+      : notifications
+          .filter((n) => !resultLeakPattern.test(`${n.title || ''} ${n.message || ''}`))
+          .slice(0, 10);
+
     res.json({
       applicationStatus: app ? app.status : 'Draft',
       selectionOpen,
       editingOpen,
       registrationOpen,
-      notifications,
+      notifications: visibleNotifications,
       email: req.user.email,
       phone: req.user.phone
     });

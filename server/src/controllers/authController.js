@@ -5,6 +5,7 @@ const { hashPassword, comparePassword, generateToken, generateRefreshToken, veri
 const { generateOTP } = require('../utils/otp');
 const { sendMail } = require('../utils/email');
 const { isRegistrationOpen, isLoginEnabled } = require('../utils/portalSettings');
+const { isAdminRole, isStudentRole } = require('../utils/authRoles');
 
 // Helper to generate Application ID: NSS26-0001
 async function generateNextAppId(trx = db) {
@@ -40,6 +41,24 @@ function publicUser(user) {
     email: user.email,
     role: user.role
   };
+}
+
+async function logAuthEvent(user, action, success, details, req) {
+  try {
+    const payload = {
+      user_id: user ? user.id : null,
+      role: user ? user.role : 'unknown',
+      action,
+      success,
+      details: typeof details === 'string' ? details : JSON.stringify(details),
+      ip_address: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      user_agent: req.headers['user-agent'] || 'unknown'
+    };
+
+    await db('login_audit_logs').insert(payload);
+  } catch (error) {
+    console.error('Auth audit logging failed:', error);
+  }
 }
 
 async function issueSessionTokens(res, user) {
@@ -222,45 +241,71 @@ async function registerVerify(req, res) {
 
 async function login(req, res) {
   try {
-    const { app_id, password } = req.body;
+    const { app_id, password, portal = 'student' } = req.body;
 
     if (!app_id || !password) {
       return res.status(400).json({ error: 'Application ID and Password are required.' });
     }
 
     const user = await db('users').where({ app_id }).first();
-
+    const intendedPortal = String(portal).toLowerCase();
     const loginAllowed = await isLoginEnabled();
-    if (!loginAllowed && user && user.role !== 'admin' && user.role !== 'superadmin') {
-      return res.status(403).json({
-        error: 'Portal login is temporarily disabled. Please try again later.'
-      });
+
+    if (!loginAllowed) {
+      await logAuthEvent(user, `${intendedPortal}_login_denied`, false, 'Login disabled', req);
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
     }
 
     if (!user || !user.is_active) {
+      await logAuthEvent(user, `${intendedPortal}_login_failed`, false, 'Invalid credentials', req);
       return res.status(401).json({ error: 'Invalid credentials or inactive account.' });
     }
 
-    // Account lock check
+    const isStudentLogin = intendedPortal === 'student';
+    const isAdminLogin = intendedPortal === 'admin';
+
+    if (isStudentLogin && isAdminRole(user.role)) {
+      await logAuthEvent(user, 'student_login_blocked', false, 'Admin attempted student login', req);
+      return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
+    }
+
+    if (isAdminLogin && isStudentRole(user.role)) {
+      await logAuthEvent(user, 'admin_login_blocked', false, 'Student attempted admin login', req);
+      return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
+    }
+
+    if (isAdminLogin && !isAdminRole(user.role)) {
+      await logAuthEvent(user, 'admin_login_blocked', false, 'Role mismatch', req);
+      return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
+    }
+
+    if (isStudentLogin && !isStudentRole(user.role)) {
+      await logAuthEvent(user, 'student_login_blocked', false, 'Role mismatch', req);
+      return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
+    }
+
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      await logAuthEvent(user, `${intendedPortal}_login_locked`, false, 'Account locked', req);
       return res.status(403).json({ error: 'Account is locked. Please try again later.' });
     }
 
     const validPassword = await comparePassword(password, user.password_hash);
     if (!validPassword) {
-      // Increment failed login attempts
-      const attempts = user.failed_login_attempts + 1;
+      const attempts = (user.failed_login_attempts || 0) + 1;
       const updates = { failed_login_attempts: attempts };
+      const lockoutThreshold = intendedPortal === 'admin' ? 3 : 5;
 
-      if (attempts >= 5) {
-        updates.locked_until = new Date(Date.now() + 15 * 60 * 1000); // 15 mins lock
+      if (attempts >= lockoutThreshold) {
+        updates.locked_until = new Date(Date.now() + 15 * 60 * 1000);
         updates.failed_login_attempts = 0;
       }
 
       await db('users').where({ id: user.id }).update(updates);
-      if (attempts >= 5) {
+      await logAuthEvent(user, `${intendedPortal}_login_failed`, false, { attempts, locked: attempts >= lockoutThreshold }, req);
+
+      if (attempts >= lockoutThreshold) {
         try {
-          await sendMail(user.email, 'NSS Vettathur Account Locked', 'account-locked.html', {
+          await sendMail(user.email, 'NSS Vettathur Account Locked', intendedPortal === 'admin' ? 'admin-account-locked.html' : 'account-locked.html', {
             STUDENT_NAME: user.app_id,
             APP_ID: user.app_id,
             REQUEST_TIME: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
@@ -271,18 +316,21 @@ async function login(req, res) {
       }
 
       return res.status(401).json({
-        error: attempts >= 5
+        error: attempts >= lockoutThreshold
           ? 'Too many failed attempts. Account locked for 15 minutes.'
           : 'Invalid credentials.'
       });
     }
 
-    // Reset failed login attempts on success
     await db('users').where({ id: user.id }).update({
       failed_login_attempts: 0,
       locked_until: null,
-      last_login: new Date()
+      last_login: new Date(),
+      last_login_at: new Date(),
+      last_login_ip: req.ip || req.headers['x-forwarded-for'] || 'unknown'
     });
+
+    await logAuthEvent(user, `${intendedPortal}_login_success`, true, 'Login succeeded', req);
 
     const token = await issueSessionTokens(res, user);
 
@@ -349,8 +397,13 @@ async function me(req, res) {
 
 async function forgotPasswordInitiate(req, res) {
   try {
-    const { identifier, app_id } = req.body;
+    const { identifier, app_id, portal = 'student' } = req.body;
     const recoveryAppId = app_id || identifier;
+    const loginAllowed = await isLoginEnabled();
+
+    if (!loginAllowed) {
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
+    }
 
     if (!recoveryAppId) {
       return res.status(400).json({ error: 'Application ID is required.' });
@@ -361,13 +414,20 @@ async function forgotPasswordInitiate(req, res) {
       .first();
 
     if (!user) {
-      // Return success response anyway to prevent user enumeration attacks
       return res.json({ message: 'If credentials match, an OTP has been sent to your email.' });
+    }
+
+    if (String(portal).toLowerCase() === 'admin' && !isAdminRole(user.role)) {
+      return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
+    }
+
+    if (String(portal).toLowerCase() === 'student' && !isStudentRole(user.role)) {
+      return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
     }
 
     const rawOtp = generateOTP();
     const hashedOtp = crypto.createHash('sha256').update(rawOtp).digest('hex');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await db('otp_codes').insert({
       email: user.email,
@@ -377,10 +437,17 @@ async function forgotPasswordInitiate(req, res) {
       attempts: 0
     });
 
-    await sendMail(user.email, 'NSS Vettathur Password Reset OTP', 'forgot-password.html', {
+    const template = String(portal).toLowerCase() === 'admin' ? 'admin-password-reset.html' : 'forgot-password.html';
+    const mailSubject = String(portal).toLowerCase() === 'admin'
+      ? 'NSS Admin Password Reset OTP'
+      : 'NSS Vettathur Password Reset OTP';
+    const toAddress = String(portal).toLowerCase() === 'admin' ? config.recoveryEmail : user.email;
+
+    await sendMail(toAddress, mailSubject, template, {
       STUDENT_NAME: user.app_id,
       APP_ID: user.app_id,
-      OTP_CODE: rawOtp
+      OTP_CODE: rawOtp,
+      REQUEST_TIME: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
     });
 
     res.json({ message: 'If credentials match, an OTP has been sent to your email.', email: user.email });
@@ -393,6 +460,11 @@ async function forgotPasswordInitiate(req, res) {
 async function forgotPasswordReset(req, res) {
   try {
     const { email, otp, newPassword } = req.body;
+    const loginAllowed = await isLoginEnabled();
+
+    if (!loginAllowed) {
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
+    }
 
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP, and New Password are required.' });
@@ -458,6 +530,11 @@ async function forgotPasswordReset(req, res) {
 async function forgotAppIdInitiate(req, res) {
   try {
     const { email, dob } = req.body;
+    const loginAllowed = await isLoginEnabled();
+
+    if (!loginAllowed) {
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
+    }
 
     if (!email || !dob) {
       return res.status(400).json({ error: 'Registered email and date of birth are required.' });

@@ -98,9 +98,14 @@ function startOtpCountdown(button, seconds = 30) {
 document.addEventListener('DOMContentLoaded', () => {
   let loginSubmitting = false;
   const loginForm = document.getElementById('login-form');
+  const adminLoginForm = document.getElementById('admin-login-form');
 
   // If already signed in on login page, go to dashboard
   if (loginForm && auth.getToken()) {
+    auth.redirectIfAuthenticated();
+  }
+
+  if (adminLoginForm && auth.getToken()) {
     auth.redirectIfAuthenticated();
   }
 
@@ -133,9 +138,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
+      const forgotLink = document.getElementById('forgot-password-link');
+      const appIdLink = document.getElementById('forgot-app-id-link');
+      const adminForgotLink = document.getElementById('admin-forgot-password-link');
+
+      if (!status.loginEnabled) {
+        if (loginForm) {
+          loginForm.querySelectorAll('input, button').forEach((element) => {
+            element.disabled = true;
+          });
+        }
+        if (adminLoginForm) {
+          adminLoginForm.querySelectorAll('input, button').forEach((element) => {
+            element.disabled = true;
+          });
+        }
+        if (forgotLink) forgotLink.style.display = 'none';
+        if (appIdLink) appIdLink.style.display = 'none';
+        if (adminForgotLink) adminForgotLink.style.display = 'none';
+        showAlert(document.getElementById('alert-box'), 'Login is not available yet. Please check back later.');
+      }
+
       if (!status.loginEnabled && loginForm) {
         const alertBox = document.getElementById('alert-box');
-        showAlert(alertBox, 'Portal login is temporarily disabled. Please try again later.', 'warning');
+        showAlert(alertBox, 'Portal login is Not Enabled. Please try again later.', 'warning');
         loginForm.querySelectorAll('input, button').forEach((el) => {
           el.disabled = true;
         });
@@ -159,12 +185,43 @@ document.addEventListener('DOMContentLoaded', () => {
           submitButton.disabled = true;
           submitButton.textContent = 'Signing in...';
         }
-        const res = await api.post('/auth/login', { app_id: appId, password });
+        const res = await api.post('/auth/login', { app_id: appId, password, portal: 'student' });
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user));
         window.location.href = res.user.role === 'admin' || res.user.role === 'superadmin'
           ? '/admin.html'
           : '/dashboard.html';
+      } catch (err) {
+        showAlert(alertBox, err.message);
+        loginSubmitting = false;
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Sign In';
+        }
+      }
+    });
+  }
+
+  if (adminLoginForm) {
+    adminLoginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (loginSubmitting) return;
+      loginSubmitting = true;
+      const appId = document.getElementById('admin_app_id').value.trim();
+      const password = document.getElementById('admin_password').value;
+      const alertBox = document.getElementById('alert-box');
+      const submitButton = adminLoginForm.querySelector('button[type="submit"]');
+
+      try {
+        hideAlert(alertBox);
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'Signing in...';
+        }
+        const res = await api.post('/auth/login', { app_id: appId, password, portal: 'admin' });
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+        window.location.href = '/admin.html';
       } catch (err) {
         showAlert(alertBox, err.message);
         loginSubmitting = false;
@@ -277,6 +334,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const forgotStep2 = document.getElementById('forgot-step-2');
   const forgotAlert = document.getElementById('forgot-alert');
   const forgotResendBtn = document.getElementById('forgot-resend-otp-btn');
+  const adminForgotLink = document.getElementById('admin-forgot-password-link');
+  const adminForgotModal = document.getElementById('admin-forgot-password-modal');
+  const adminCloseModal = document.getElementById('admin-close-modal');
+  const adminForgotStep1 = document.getElementById('admin-forgot-step-1');
+  const adminForgotStep2 = document.getElementById('admin-forgot-step-2');
+  const adminForgotAlert = document.getElementById('admin-forgot-alert');
+  const adminOtp = setupOtpInput('admin-forgot-otp', {
+    onComplete: () => {
+      if (adminForgotStep2) adminForgotStep2.requestSubmit();
+    }
+  });
   let resetEmail = '';
   let resetAppId = '';
 
@@ -290,11 +358,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function sendForgotPasswordOtp() {
     Popup.loading('Sending OTP...');
-    const res = await api.post('/auth/forgot-password/initiate', { app_id: resetAppId });
+    const res = await api.post('/auth/forgot-password/initiate', { app_id: resetAppId, portal: 'student' });
     Popup.closeLoading();
     resetEmail = res.email || '';
     startOtpCountdown(forgotResendBtn);
     forgotOtp && forgotOtp.focus();
+  }
+
+  async function sendAdminForgotPasswordOtp() {
+    Popup.loading('Sending OTP...');
+    const res = await api.post('/auth/forgot-password/initiate', { app_id: document.getElementById('admin-forgot-identifier').value.trim(), portal: 'admin' });
+    Popup.closeLoading();
+    resetEmail = res.email || '';
+    adminOtp && adminOtp.focus();
   }
 
   if (forgotLink) {
@@ -307,9 +383,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (adminForgotLink) {
+    adminForgotLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      adminForgotModal.style.display = 'flex';
+      adminForgotStep1.style.display = 'block';
+      adminForgotStep2.style.display = 'none';
+      hideAlert(adminForgotAlert);
+    });
+  }
+
   if (closeModal) {
     closeModal.addEventListener('click', () => {
       forgotModal.style.display = 'none';
+    });
+  }
+
+  if (adminCloseModal) {
+    adminCloseModal.addEventListener('click', () => {
+      adminForgotModal.style.display = 'none';
     });
   }
 
@@ -328,6 +420,23 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         Popup.closeLoading();
         showAlert(forgotAlert, err.message);
+      }
+    });
+  }
+
+  if (adminForgotStep1) {
+    adminForgotStep1.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert(adminForgotAlert);
+      try {
+        await sendAdminForgotPasswordOtp();
+        adminForgotStep1.style.display = 'none';
+        document.getElementById('admin-forgot-subtext').textContent = 'Enter the OTP sent to the recovery inbox and configure a new password.';
+        adminForgotStep2.style.display = 'block';
+        showAlert(adminForgotAlert, 'OTP sent for administrator recovery.', 'success');
+      } catch (err) {
+        Popup.closeLoading();
+        showAlert(adminForgotAlert, err.message);
       }
     });
   }
@@ -373,6 +482,38 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         Popup.closeLoading();
         showAlert(forgotAlert, err.message);
+      }
+    });
+  }
+
+  if (adminForgotStep2) {
+    adminForgotStep2.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert(adminForgotAlert);
+
+      const newPassword = document.getElementById('admin-forgot-new-pass').value;
+      const confirmPassword = document.getElementById('admin-forgot-confirm-pass').value;
+      if (newPassword !== confirmPassword) {
+        showAlert(adminForgotAlert, 'Passwords do not match.');
+        return;
+      }
+
+      try {
+        Popup.loading('Resetting password...');
+        await api.post('/auth/forgot-password/reset', {
+          email: resetEmail,
+          otp: document.getElementById('admin-forgot-otp').value.trim(),
+          newPassword
+        });
+        showAlert(adminForgotAlert, 'Administrator password reset successful.', 'success');
+        Popup.closeLoading();
+        Popup.success('Admin password changed successfully.', 'Password changed');
+        setTimeout(() => {
+          adminForgotModal.style.display = 'none';
+        }, 1800);
+      } catch (err) {
+        Popup.closeLoading();
+        showAlert(adminForgotAlert, err.message);
       }
     });
   }

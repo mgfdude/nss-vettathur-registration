@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - NSS Vettathur Admin Portal</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card fade-in">
+      <div class="auth-header">
+        <p style="margin-bottom: 10px;"><a href="/index.html" style="color: var(--text-muted); text-decoration: none; font-size: 13px;">← Back to Home</a></p>
+        <h1>Administrator Portal</h1>
+        <p>Secure NSS admin sign-in</p>
+      </div>
+
+      <div id="alert-box" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="admin-login-form">
+        <div class="form-group">
+          <label for="admin_app_id">Admin Application ID</label>
+          <input type="text" id="admin_app_id" required placeholder="e.g., NSS26-0001" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label for="admin_password">Password</label>
+            <a href="#admin-forgot-password" id="admin-forgot-password-link" style="font-size: 13px; color: var(--primary); text-decoration: none;">Forgot Password?</a>
+          </div>
+          <input type="password" id="admin_password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      </form>
+
+      <div style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+        Student portal? <a href="/login.html" style="color: var(--primary); font-weight: 600; text-decoration: none;">Use Student Login</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-forgot-password-modal" class="auth-modal">
+    <div class="auth-card fade-in" style="position: relative;">
+      <button id="admin-close-modal" class="modal-close-btn" type="button">&times;</button>
+
+      <div class="auth-header">
+        <h2>Reset Admin Password</h2>
+        <p id="admin-forgot-subtext">Enter your Application ID to receive an OTP.</p>
+      </div>
+
+      <div id="admin-forgot-alert" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="admin-forgot-step-1">
+        <div class="form-group">
+          <label for="admin-forgot-identifier">Application ID</label>
+          <input type="text" id="admin-forgot-identifier" required placeholder="Enter your Application ID">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Request OTP</button>
+      </form>
+
+      <form id="admin-forgot-step-2" style="display: none;">
+        <div class="form-group">
+          <label>OTP Code</label>
+          <div class="otp-input-group" data-otp-target="admin-forgot-otp"></div>
+          <input type="hidden" id="admin-forgot-otp" required>
+        </div>
+        <div class="form-group">
+          <label for="admin-forgot-new-pass">New Password</label>
+          <input type="password" id="admin-forgot-new-pass" required placeholder="Min 8 chars, 1 uppercase, 1 symbol">
+        </div>
+        <div class="form-group">
+          <label for="admin-forgot-confirm-pass">Confirm Password</label>
+          <input type="password" id="admin-forgot-confirm-pass" required placeholder="Confirm new password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Reset Password</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/popups.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>

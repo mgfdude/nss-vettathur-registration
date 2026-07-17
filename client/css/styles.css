@@ -1592,6 +1592,23 @@ tr:hover {
   margin-bottom: 12px;
 }
 
+.landing-hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: hsl(224, 55%, 16%);
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.landing-hero-brand img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
 .landing-hero h1 {
   font-size: clamp(2rem, 4vw, 2.75rem);
   line-height: 1.15;
