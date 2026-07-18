@@ -358,13 +358,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Registration form validation: enable submit only when all requirements met
   const regStep1Submit = document.getElementById('register-step-1-submit');
   const regStep2Submit = document.getElementById('register-step-2-submit');
+  const regStep1Help = document.getElementById('register-step-1-help');
+  const regStep2Help = document.getElementById('register-step-2-help');
 
   function cleanPhoneInput(value) {
     return value.replace(/\D/g, '').slice(0, 10);
   }
 
-  function isStep1Valid() {
-    if (!regStep1) return false;
+  function getAge(dob) {
+    const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age -= 1;
+    }
+    return age;
+  }
+
+  function getStep1Error() {
+    if (!regStep1) return '';
     const email = document.getElementById('email').value.trim();
     const confirmEmail = document.getElementById('confirmEmail').value.trim();
     const phone = document.getElementById('phone').value.trim();
@@ -372,38 +386,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const dob = document.getElementById('dob').value;
     const confirmDob = document.getElementById('confirmDob').value;
 
-    if (!email || !confirmEmail || email !== confirmEmail) return false;
-    if (!phone || !confirmPhone) return false;
-    if (phone !== confirmPhone) return false;
-    if (!/^[0-9]{10}$/.test(phone)) return false;
-    if (!dob || !confirmDob || dob !== confirmDob) return false;
-    return true;
+    if (!email || !confirmEmail) return 'Enter and confirm your email address.';
+    if (email.toLowerCase() !== confirmEmail.toLowerCase()) return 'Email addresses must match.';
+    if (!phone || !confirmPhone) return 'Enter and confirm your phone number.';
+    if (phone !== confirmPhone) return 'Phone numbers must match.';
+    if (!/^[6-9][0-9]{9}$/.test(phone)) return 'Phone number must be 10 digits and start with 6, 7, 8, or 9.';
+    if (!dob || !confirmDob) return 'Enter and confirm your date of birth.';
+    if (dob !== confirmDob) return 'Dates of birth must match.';
+
+    const age = getAge(dob);
+    if (age === null || age < 12 || age > 25) return 'Age must be between 12 and 25 years.';
+    return '';
   }
 
   function validateStep1() {
-    if (regStep1Submit) regStep1Submit.disabled = !isStep1Valid();
+    const error = getStep1Error();
+    if (regStep1Submit) regStep1Submit.disabled = Boolean(error);
+    if (regStep1Help) regStep1Help.textContent = error || 'Ready to continue.';
   }
 
   function isPasswordValid(pw) {
     if (!pw || pw.length < 8) return false;
     if (!/[A-Z]/.test(pw)) return false;
+    if (!/[a-z]/.test(pw)) return false;
+    if (!/[0-9]/.test(pw)) return false;
     if (!/[!@#\$%\^&\*\(\)\-_=+\[\]{};:'"\\|,.<>\/?]/.test(pw)) return false;
     return true;
   }
 
-  function isStep2Valid() {
-    if (!regStep2) return false;
+  function getStep2Error() {
+    if (!regStep2) return '';
     const otp = document.getElementById('otp').value.trim();
     const pw = document.getElementById('password').value;
     const cpw = document.getElementById('confirmPassword').value;
-    if (!/^[0-9]{6}$/.test(otp)) return false;
-    if (!isPasswordValid(pw)) return false;
-    if (pw !== cpw) return false;
-    return true;
+    if (!/^[0-9]{6}$/.test(otp)) return 'Enter the 6-digit OTP.';
+    if (!isPasswordValid(pw)) return 'Password needs 8+ characters with uppercase, lowercase, number, and symbol.';
+    if (pw !== cpw) return 'Passwords must match.';
+    return '';
   }
 
   function validateStep2() {
-    if (regStep2Submit) regStep2Submit.disabled = !isStep2Valid();
+    const error = getStep2Error();
+    if (regStep2Submit) regStep2Submit.disabled = Boolean(error);
+    if (regStep2Help) regStep2Help.textContent = error || 'Ready to complete registration.';
   }
 
   // Attach input listeners for live validation

@@ -2,6 +2,12 @@
  * Extend portal settings and add public announcements.
  */
 exports.up = async function (knex) {
+  if (await knex.schema.hasColumn('settings', 'value')) {
+    await knex.schema.alterTable('settings', (table) => {
+      table.text('value').notNullable().alter();
+    });
+  }
+
   const existingKeys = await knex('settings').pluck('key');
   const now = new Date();
 

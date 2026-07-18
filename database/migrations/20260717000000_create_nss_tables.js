@@ -73,7 +73,7 @@ exports.up = function(knex) {
     })
     .createTable('settings', (table) => {
       table.string('key').primary();
-      table.string('value').notNullable();
+      table.text('value').notNullable();
       table.string('description');
       table.timestamps(true, true);
     })
