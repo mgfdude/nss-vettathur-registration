@@ -2,10 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
-const fs = require('fs');
 const config = require('../config');
 const { authenticateToken } = require('./middlewares/auth');
 const db = require('../../database/connection');
+const {
+  getStorageDownloadUrl,
+  sanitizeStoragePath
+} = require('./utils/supabaseStorage');
 
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
@@ -29,31 +32,33 @@ app.use(express.static(path.join(__dirname, '..', '..', 'client')));
 // Protected uploads serving endpoint
 app.get('/api/uploads/*', authenticateToken, async (req, res) => {
   try {
-    const requestedPath = req.params[0];
-    const uploadsRoot = path.join(__dirname, '..', '..', 'uploads');
-    const resolvedPath = path.resolve(uploadsRoot, requestedPath);
+    const requestedPath = sanitizeStoragePath(req.params[0]);
+    if (!requestedPath) {
+      return res.status(400).json({ error: 'Invalid file path.' });
+    }
 
-    if (!resolvedPath.startsWith(path.resolve(uploadsRoot) + path.sep) || !fs.existsSync(resolvedPath)) {
+    let allowed = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+    if (!allowed) {
+      const application = await db('applications').where({ user_id: req.user.id }).first();
+      allowed = Boolean(
+        application &&
+        (application.photo_path === requestedPath ||
+         application.signature_path === requestedPath ||
+         application.docs_path === requestedPath)
+      );
+    }
+
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied to this file.' });
+    }
+
+    const signedUrl = await getStorageDownloadUrl(requestedPath);
+    if (!signedUrl) {
       return res.status(404).json({ error: 'File not found.' });
     }
 
-    // Admin can access all uploads
-    if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-      return res.sendFile(resolvedPath);
-    }
-
-    // Students can only access their own uploads
-    const application = await db('applications').where({ user_id: req.user.id }).first();
-    if (
-      application &&
-      (application.photo_path === requestedPath ||
-       application.signature_path === requestedPath ||
-       application.docs_path === requestedPath)
-    ) {
-      return res.sendFile(resolvedPath);
-    }
-
-    return res.status(403).json({ error: 'Access denied to this file.' });
+    return res.redirect(signedUrl);
   } catch (error) {
     console.error('File serving error:', error);
     res.status(500).json({ error: 'Failed to retrieve file.' });

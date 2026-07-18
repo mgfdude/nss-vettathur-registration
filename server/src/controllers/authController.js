@@ -43,6 +43,11 @@ function publicUser(user) {
   };
 }
 
+function returnedId(rows) {
+  const first = Array.isArray(rows) ? rows[0] : rows;
+  return typeof first === 'object' && first !== null ? first.id : first;
+}
+
 async function logAuthEvent(user, action, success, details, req) {
   try {
     const userId = user ? user.id : null;
@@ -235,7 +240,7 @@ async function registerVerify(req, res) {
       app_id = await generateNextAppId(trx);
       const passwordHash = await hashPassword(password);
 
-      const [userId] = await trx('users').insert({
+      const insertedUser = await trx('users').insert({
         app_id,
         email: details.email,
         phone: details.phone,
@@ -243,7 +248,8 @@ async function registerVerify(req, res) {
         role: 'student',
         is_email_verified: true,
         is_active: true
-      });
+      }).returning('id');
+      const userId = returnedId(insertedUser);
 
       // Create draft Application profile
       await trx('applications').insert({
@@ -481,7 +487,7 @@ async function refresh(req, res) {
     }
 
     await revokeRefreshToken(refreshToken);
-    const token = await issueSessionTokens(res, user);
+    const token = await issueSessionTokens(res, user, requestTabId);
 
     res.json({
       message: 'Session refreshed.',

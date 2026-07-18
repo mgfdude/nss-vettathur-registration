@@ -313,7 +313,7 @@ async function createAnnouncement(req, res) {
       return res.status(400).json({ error: 'Title and body are required.' });
     }
 
-    const [id] = await db('announcements').insert({
+    const insertedRows = await db('announcements').insert({
       title: String(title).trim(),
       body: String(body).trim(),
       is_published: Boolean(is_published),
@@ -321,7 +321,9 @@ async function createAnnouncement(req, res) {
       published_at: new Date(),
       created_at: new Date(),
       updated_at: new Date()
-    });
+    }).returning('id');
+    const inserted = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
 
     const item = await db('announcements').where({ id }).first();
     res.status(201).json({ message: 'Announcement created.', item });

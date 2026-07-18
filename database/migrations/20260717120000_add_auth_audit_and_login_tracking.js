@@ -19,8 +19,13 @@ exports.up = async function (knex) {
 
 exports.down = async function (knex) {
   await knex.schema.dropTableIfExists('login_audit_logs');
-  await knex.schema.table('users', (table) => {
-    table.dropColumnIfExists('last_login_at');
-    table.dropColumnIfExists('last_login_ip');
-  });
+  const hasLastLoginAt = await knex.schema.hasColumn('users', 'last_login_at');
+  const hasLastLoginIp = await knex.schema.hasColumn('users', 'last_login_ip');
+
+  if (hasLastLoginAt || hasLastLoginIp) {
+    await knex.schema.table('users', (table) => {
+      if (hasLastLoginAt) table.dropColumn('last_login_at');
+      if (hasLastLoginIp) table.dropColumn('last_login_ip');
+    });
+  }
 };

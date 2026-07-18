@@ -1,7 +1,14 @@
 const db = require('../../../database/connection');
-const fs = require('fs').promises;
-const path = require('path');
 const { sendMail } = require('../utils/email');
+const upload = require('../middlewares/upload');
+const {
+  uploadPhoto,
+  uploadSignature,
+  uploadPdf,
+  deleteStudentFiles,
+  getStudentFiles,
+  sanitizeStoragePath
+} = require('../utils/supabaseStorage');
 const {
   isRegistrationOpen,
   isEditingOpen,
@@ -14,49 +21,29 @@ const uploadColumns = {
   docs: 'docs_path'
 };
 
-function uploadsRoot() {
-  return path.join(__dirname, '..', '..', '..', 'uploads');
-}
-
-function safeUploadPath(relativePath) {
-  if (!relativePath) return null;
-  const root = path.resolve(uploadsRoot());
-  const resolved = path.resolve(root, relativePath);
-  if (!resolved.startsWith(root + path.sep)) return null;
-  return resolved;
-}
-
-async function removeUploadFile(relativePath) {
-  const resolved = safeUploadPath(relativePath);
-  if (!resolved) return;
-  try {
-    await fs.unlink(resolved);
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-  }
-}
-
 async function buildUploadItem(type, relativePath) {
-  if (!relativePath) return null;
-  const resolved = safeUploadPath(relativePath);
-  if (!resolved) return null;
+  const storagePath = sanitizeStoragePath(relativePath);
+  if (!storagePath) return null;
 
-  try {
-    const stat = await fs.stat(resolved);
-    return {
-      type,
-      filename: path.basename(relativePath),
-      path: relativePath,
-      url: `/api/uploads/${relativePath.replace(/\\/g, '/')}`,
-      size: stat.size,
-      uploaded_at: stat.mtime,
-      is_image: /\.(png|jpe?g)$/i.test(relativePath),
-      is_pdf: /\.pdf$/i.test(relativePath)
-    };
-  } catch (error) {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  }
+  const [fileInfo] = await getStudentFiles([storagePath]);
+  return {
+    type,
+    filename: storagePath.split('/').pop(),
+    path: storagePath,
+    url: `/api/uploads/${storagePath}`,
+    signed_url: fileInfo?.downloadUrl || null,
+    size: fileInfo?.size || null,
+    uploaded_at: fileInfo?.updatedAt || null,
+    is_image: /\.(png|jpe?g)$/i.test(storagePath),
+    is_pdf: /\.pdf$/i.test(storagePath)
+  };
+}
+
+async function uploadByField(appId, file) {
+  if (file.fieldname === 'photo') return uploadPhoto(appId, file);
+  if (file.fieldname === 'signature') return uploadSignature(appId, file);
+  if (file.fieldname === 'docs' || file.fieldname === 'pdf') return uploadPdf(appId, file);
+  throw new Error('Invalid field source.');
 }
 
 async function getApplication(req, res) {
@@ -125,8 +112,13 @@ async function uploadDocument(req, res) {
     if (!file) {
       return res.status(400).json({ error: 'No file uploaded.' });
     }
+    upload.validateUploadedFile(file);
 
     const app = await db('applications').where({ user_id: req.user.id }).first();
+    if (!app) {
+      return res.status(404).json({ error: 'Application not found.' });
+    }
+
     if (app.status !== 'Draft') {
       return res.status(400).json({ error: 'Cannot upload files after submission.' });
     }
@@ -142,27 +134,28 @@ async function uploadDocument(req, res) {
       return res.status(400).json({ error: 'Invalid field source.' });
     }
 
-    if (app[columnName]) {
-      await removeUploadFile(app[columnName]);
-    }
-
-    const relativePath = `${req.user.app_id}/${file.filename}`;
+    const stored = await uploadByField(req.user.app_id, file);
+    const relativePath = stored.path;
 
     await db('applications').where({ user_id: req.user.id }).update({
       [columnName]: relativePath,
       updated_at: new Date()
     });
 
+    if (app[columnName]) {
+      await deleteStudentFiles([app[columnName]]);
+    }
+
     const upload = await buildUploadItem(fieldName, relativePath);
 
     res.json({
       message: 'File uploaded successfully.',
-      filename: file.filename,
+      filename: relativePath.split('/').pop(),
       upload
     });
   } catch (error) {
     console.error('Upload document error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(400).json({ error: error.message || 'Upload failed.' });
   }
 }
 
@@ -206,7 +199,7 @@ async function deleteUpload(req, res) {
       return res.status(400).json({ error: 'Application editing is currently closed. Uploads are read-only.' });
     }
 
-    await removeUploadFile(app[columnName]);
+    await deleteStudentFiles([app[columnName]]);
     await db('applications').where({ user_id: req.user.id }).update({
       [columnName]: null,
       updated_at: new Date()
