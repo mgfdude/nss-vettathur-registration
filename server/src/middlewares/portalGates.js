@@ -1,7 +1,7 @@
 const {
   isRegistrationOpen,
   isEditingOpen,
-  isLoginEnabled
+  isStudentLoginEnabled
 } = require('../utils/portalSettings');
 
 async function requireRegistrationOpen(req, res, next) {
@@ -34,7 +34,7 @@ async function requireEditingOpen(req, res, next) {
 
 async function requireStudentLoginEnabled(req, res, next) {
   try {
-    const enabled = await isLoginEnabled();
+    const enabled = await isStudentLoginEnabled();
     if (!enabled) {
       return res.status(403).json({
         error: 'Portal login is temporarily disabled. Please try again later.'

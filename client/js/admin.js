@@ -255,7 +255,14 @@ async function loadSettings() {
     const settings = await api.get('/admin/settings');
     document.getElementById('setting-reg-open').value = settings.registration_open || 'false';
     document.getElementById('setting-editing-open').value = settings.editing_open || 'true';
-    document.getElementById('setting-login-enabled').value = settings.login_enabled || 'true';
+    document.getElementById('setting-student-login-enabled').value =
+      settings.student_login_enabled !== undefined
+        ? settings.student_login_enabled
+        : (settings.login_enabled || 'true');
+    document.getElementById('setting-admin-login-enabled').value =
+      settings.admin_login_enabled !== undefined
+        ? settings.admin_login_enabled
+        : (settings.login_enabled || 'true');
     document.getElementById('setting-selection-open').value = settings.selection_open || 'false';
     document.getElementById('setting-reg-start').value = isoToDatetimeLocal(settings.registration_start);
     document.getElementById('setting-reg-deadline').value = isoToDatetimeLocal(settings.registration_deadline);
@@ -304,8 +311,9 @@ async function refreshEffectiveStatusPreview() {
         <strong>Live effective status:</strong>
         Registration ${status.registrationOpen ? 'Open' : 'Closed'} ·
         Editing ${status.editingOpen ? 'Open' : 'Closed'} ·
-        Results ${status.selectionOpen ? 'Published' : 'Hidden'} ·
-        Login ${status.loginEnabled ? 'Enabled' : 'Disabled'}
+        Student Login ${status.studentLoginEnabled ? 'Enabled' : 'Disabled'} ·
+        Admin Login ${status.adminLoginEnabled ? 'Enabled' : 'Disabled'} ·
+        Results ${status.selectionOpen ? 'Published' : 'Hidden'}
       </span>
     `;
   } catch (err) {
@@ -324,10 +332,8 @@ async function handleSettingsSave(e) {
   const payload = {
     registration_open: document.getElementById('setting-reg-open').value,
     editing_open: document.getElementById('setting-editing-open').value,
-    login_enabled: document.getElementById('setting-login-enabled').value,
-    selection_open: document.getElementById('setting-selection-open').value,
-    registration_start: datetimeLocalToIso(document.getElementById('setting-reg-start').value),
-    registration_deadline: datetimeLocalToIso(document.getElementById('setting-reg-deadline').value),
+      student_login_enabled: document.getElementById('setting-student-login-enabled').value,
+      admin_login_enabled: document.getElementById('setting-admin-login-enabled').value,
     editing_deadline: datetimeLocalToIso(document.getElementById('setting-editing-deadline').value),
     result_date: datetimeLocalToIso(document.getElementById('setting-result-date').value),
     max_applicants: document.getElementById('setting-max-applicants').value.trim(),

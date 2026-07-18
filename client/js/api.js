@@ -1,21 +1,39 @@
 const API_URL = '/api';
+const SESSION_TOKEN_KEY = 'token';
+const SESSION_USER_KEY = 'user';
+const SESSION_TAB_KEY = 'sessionTabId';
+
+function generateSessionTabId() {
+  return `${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}-${Date.now()}`;
+}
+
+function getSessionTabId() {
+  let tabId = sessionStorage.getItem(SESSION_TAB_KEY);
+  if (!tabId) {
+    tabId = generateSessionTabId();
+    sessionStorage.setItem(SESSION_TAB_KEY, tabId);
+  }
+  return tabId;
+}
 
 const auth = {
   refreshPromise: null,
   redirecting: false,
 
   getToken() {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem(SESSION_TOKEN_KEY);
   },
 
   setSession(token, user) {
-    if (token) localStorage.setItem('token', token);
-    if (user) localStorage.setItem('user', JSON.stringify(user));
+    if (token) sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+    if (user) sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+    getSessionTabId();
   },
 
   clearSession(message = 'Your session has expired. Please sign in again.') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    sessionStorage.removeItem(SESSION_USER_KEY);
+    sessionStorage.removeItem(SESSION_TAB_KEY);
     if (message) sessionStorage.setItem('authMessage', message);
   },
 
@@ -54,7 +72,10 @@ const auth = {
     if (!this.refreshPromise) {
       this.refreshPromise = fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'X-Session-Tab': getSessionTabId()
+        }
       })
         .then(async (response) => {
           const data = await parseJson(response);
@@ -102,7 +123,7 @@ const auth = {
         return null;
       }
 
-      localStorage.setItem('user', JSON.stringify(user));
+      sessionStorage.setItem('user', JSON.stringify(user));
       return user;
     } catch (error) {
       this.redirectToLogin('Your session has expired. Please sign in again.');
@@ -114,11 +135,11 @@ const auth = {
 
   showLoginMessage() {
     const message = sessionStorage.getItem('authMessage');
-    const alertBox = document.getElementById('alert-box') || document.getElementById('session-alert');
-    if (message && alertBox) {
-      alertBox.className = 'alert alert-warning';
-      alertBox.textContent = message;
-      alertBox.style.display = 'flex';
+    if (message) {
+      try { Popup.warning(message, 'Notice'); } catch (e) {
+        /* Popup may not be loaded; fallback to console */
+        console.warn('Auth message:', message);
+      }
       sessionStorage.removeItem('authMessage');
     }
   }
@@ -144,8 +165,12 @@ async function request(endpoint, options = {}) {
     ...(requestOptions.headers || {})
   };
 
+  const sessionTabId = getSessionTabId();
   if (token) {
     requestOptions.headers.Authorization = `Bearer ${token}`;
+  }
+  if (sessionTabId) {
+    requestOptions.headers['X-Session-Tab'] = sessionTabId;
   }
 
   if (requestOptions.body && !(requestOptions.body instanceof FormData)) {
@@ -201,8 +226,12 @@ const api = {
       xhr.withCredentials = true;
 
       const token = auth.getToken();
+      const sessionTabId = getSessionTabId();
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      if (sessionTabId) {
+        xhr.setRequestHeader('X-Session-Tab', sessionTabId);
       }
 
       xhr.upload.addEventListener('progress', (event) => {

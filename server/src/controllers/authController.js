@@ -4,7 +4,7 @@ const config = require('../../config');
 const { hashPassword, comparePassword, generateToken, generateRefreshToken, verifyToken } = require('../utils/auth');
 const { generateOTP } = require('../utils/otp');
 const { sendMail } = require('../utils/email');
-const { isRegistrationOpen, isLoginEnabled } = require('../utils/portalSettings');
+const { isRegistrationOpen, isStudentLoginEnabled, isAdminLoginEnabled } = require('../utils/portalSettings');
 const { isAdminRole, isStudentRole } = require('../utils/authRoles');
 
 // Helper to generate Application ID: NSS26-0001
@@ -45,9 +45,13 @@ function publicUser(user) {
 
 async function logAuthEvent(user, action, success, details, req) {
   try {
+    const userId = user ? user.id : null;
+    const appId = user ? user.app_id : 'unknown';
+    const role = user ? user.role : 'unknown';
+    const status = user ? (user.is_active ? 'active' : 'inactive') : 'unknown';
     const payload = {
-      user_id: user ? user.id : null,
-      role: user ? user.role : 'unknown',
+      user_id: userId,
+      role,
       action,
       success,
       details: typeof details === 'string' ? details : JSON.stringify(details),
@@ -56,19 +60,21 @@ async function logAuthEvent(user, action, success, details, req) {
     };
 
     await db('login_audit_logs').insert(payload);
+    console.log(`[AuthEvent] uid=${userId || 'n/a'} app_id=${appId} role=${role} action=${action} success=${success} status=${status} details=${payload.details}`);
   } catch (error) {
     console.error('Auth audit logging failed:', error);
   }
 }
 
-async function issueSessionTokens(res, user) {
-  const tokenPayload = { id: user.id, app_id: user.app_id, role: user.role };
+async function issueSessionTokens(res, user, tabId) {
+  const tokenPayload = { id: user.id, app_id: user.app_id, role: user.role, tabId };
   const token = generateToken(tokenPayload);
   const refreshToken = generateRefreshToken({
     id: user.id,
     app_id: user.app_id,
     role: user.role,
     type: 'refresh',
+    tabId,
     jti: crypto.randomBytes(16).toString('hex')
   });
   const expiresAt = new Date(Date.now() + config.refreshTokenCookieMaxAge);
@@ -87,6 +93,31 @@ async function issueSessionTokens(res, user) {
   });
 
   return token;
+}
+
+async function issueLoginOtp(user, portal, req) {
+  const rawOtp = generateOTP();
+  const hashedOtp = crypto.createHash('sha256').update(rawOtp).digest('hex');
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await db('otp_codes').where({ email: user.email, type: 'login' }).del();
+  await db('otp_codes').insert({
+    email: user.email,
+    code_hash: hashedOtp,
+    type: 'login',
+    payload: JSON.stringify({ app_id: user.app_id, portal }),
+    expires_at: expiresAt,
+    attempts: 0
+  });
+
+  const subject = 'NSS Vettathur Login OTP';
+  await sendMail(user.email, subject, 'otp.html', {
+    STUDENT_NAME: user.app_id,
+    OTP_CODE: rawOtp,
+    REQUEST_TIME: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+  });
+
+  await logAuthEvent(user, `${portal}_login_otp_sent`, true, 'Login OTP sent', req);
 }
 
 async function revokeRefreshToken(token) {
@@ -196,7 +227,9 @@ async function registerVerify(req, res) {
       // Re-verify email/phone duplicate check inside transaction
       const duplicateUser = await trx('users').where({ email: details.email }).orWhere({ phone: details.phone }).first();
       if (duplicateUser) {
-        throw new Error('Email or phone already exists.');
+        const error = new Error('Email or phone already exists.');
+        error.code = 'DUPLICATE_REGISTRATION';
+        throw error;
       }
 
       app_id = await generateNextAppId(trx);
@@ -235,6 +268,9 @@ async function registerVerify(req, res) {
     });
   } catch (error) {
     console.error('Registration verification error:', error);
+    if (error.code === 'DUPLICATE_REGISTRATION') {
+      return res.status(400).json({ error: 'Email or phone number is already registered.' });
+    }
     res.status(500).json({ error: error.message || 'Internal server error.' });
   }
 }
@@ -247,17 +283,17 @@ async function login(req, res) {
       return res.status(400).json({ error: 'Application ID and Password are required.' });
     }
 
-    const user = await db('users').where({ app_id }).first();
     const intendedPortal = String(portal).toLowerCase();
-    const loginAllowed = await isLoginEnabled();
+    const loginAllowed = intendedPortal === 'admin'
+      ? await isAdminLoginEnabled()
+      : await isStudentLoginEnabled();
 
     if (!loginAllowed) {
-      await logAuthEvent(user, `${intendedPortal}_login_denied`, false, 'Login disabled', req);
       return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
     }
 
+    const user = await db('users').where({ app_id }).first();
     if (!user || !user.is_active) {
-      await logAuthEvent(user, `${intendedPortal}_login_failed`, false, 'Invalid credentials', req);
       return res.status(401).json({ error: 'Invalid credentials or inactive account.' });
     }
 
@@ -265,27 +301,22 @@ async function login(req, res) {
     const isAdminLogin = intendedPortal === 'admin';
 
     if (isStudentLogin && isAdminRole(user.role)) {
-      await logAuthEvent(user, 'student_login_blocked', false, 'Admin attempted student login', req);
       return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
     }
 
     if (isAdminLogin && isStudentRole(user.role)) {
-      await logAuthEvent(user, 'admin_login_blocked', false, 'Student attempted admin login', req);
       return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
     }
 
     if (isAdminLogin && !isAdminRole(user.role)) {
-      await logAuthEvent(user, 'admin_login_blocked', false, 'Role mismatch', req);
       return res.status(403).json({ error: 'This account belongs to a student. Please use the Student Login Portal.' });
     }
 
     if (isStudentLogin && !isStudentRole(user.role)) {
-      await logAuthEvent(user, 'student_login_blocked', false, 'Role mismatch', req);
       return res.status(403).json({ error: 'This account belongs to an administrator. Please use the Admin Login Portal.' });
     }
 
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
-      await logAuthEvent(user, `${intendedPortal}_login_locked`, false, 'Account locked', req);
       return res.status(403).json({ error: 'Account is locked. Please try again later.' });
     }
 
@@ -301,7 +332,6 @@ async function login(req, res) {
       }
 
       await db('users').where({ id: user.id }).update(updates);
-      await logAuthEvent(user, `${intendedPortal}_login_failed`, false, { attempts, locked: attempts >= lockoutThreshold }, req);
 
       if (attempts >= lockoutThreshold) {
         try {
@@ -322,6 +352,69 @@ async function login(req, res) {
       });
     }
 
+    await issueLoginOtp(user, intendedPortal, req);
+    res.json({ message: 'OTP sent to your registered email. Please verify to complete login.' });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+async function loginVerify(req, res) {
+  try {
+    const { app_id, otp, portal = 'student' } = req.body;
+
+    if (!app_id || !otp) {
+      return res.status(400).json({ error: 'Application ID and OTP are required.' });
+    }
+
+    const intendedPortal = String(portal).toLowerCase();
+    const loginAllowed = intendedPortal === 'admin'
+      ? await isAdminLoginEnabled()
+      : await isStudentLoginEnabled();
+
+    if (!loginAllowed) {
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
+    }
+
+    const user = await db('users').where({ app_id }).first();
+    if (!user || !user.is_active) {
+      return res.status(401).json({ error: 'Invalid credentials or inactive account.' });
+    }
+
+    const record = await db('otp_codes')
+      .where({ email: user.email, type: 'login' })
+      .andWhere('expires_at', '>', new Date())
+      .orderBy('created_at', 'desc')
+      .first();
+
+    if (!record) {
+      return res.status(400).json({ error: 'Invalid or expired OTP.' });
+    }
+
+    let payload = null;
+    try {
+      payload = JSON.parse(record.payload || '{}');
+    } catch (payloadErr) {
+      payload = null;
+    }
+
+    if (!payload || payload.portal !== intendedPortal || payload.app_id !== app_id) {
+      return res.status(400).json({ error: 'Invalid OTP for this login method.' });
+    }
+
+    if (record.attempts >= 3) {
+      return res.status(400).json({ error: 'Too many incorrect attempts. Please request a new OTP.' });
+    }
+
+    const hashedInputOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    if (record.code_hash !== hashedInputOtp) {
+      await db('otp_codes').where({ id: record.id }).increment('attempts', 1);
+      return res.status(400).json({ error: 'Incorrect OTP code.' });
+    }
+
+    await db('otp_codes').where({ id: record.id }).del();
+
     await db('users').where({ id: user.id }).update({
       failed_login_attempts: 0,
       locked_until: null,
@@ -330,9 +423,13 @@ async function login(req, res) {
       last_login_ip: req.ip || req.headers['x-forwarded-for'] || 'unknown'
     });
 
-    await logAuthEvent(user, `${intendedPortal}_login_success`, true, 'Login succeeded', req);
+    const tabId = req.headers['x-session-tab'];
+    if (!tabId) {
+      return res.status(400).json({ error: 'Login must be completed from the same browser tab.' });
+    }
 
-    const token = await issueSessionTokens(res, user);
+    const token = await issueSessionTokens(res, user, tabId);
+    await logAuthEvent(user, `${intendedPortal}_login_success`, true, 'Login OTP verified, login succeeded', req);
 
     res.json({
       message: 'Login successful.',
@@ -340,7 +437,7 @@ async function login(req, res) {
       user: publicUser(user)
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login verification error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 }
@@ -352,8 +449,14 @@ async function refresh(req, res) {
       return res.status(401).json({ error: 'Refresh session not found.' });
     }
 
+    const requestTabId = req.headers['x-session-tab'];
+    if (!requestTabId) {
+      res.clearCookie('refreshToken');
+      return res.status(401).json({ error: 'Session refresh requires a valid tab context.' });
+    }
+
     const decoded = verifyToken(refreshToken, { refresh: true });
-    if (!decoded || decoded.type !== 'refresh') {
+    if (!decoded || decoded.type !== 'refresh' || decoded.tabId !== requestTabId) {
       await revokeRefreshToken(refreshToken);
       res.clearCookie('refreshToken');
       return res.status(401).json({ error: 'Refresh session expired.' });
@@ -399,7 +502,9 @@ async function forgotPasswordInitiate(req, res) {
   try {
     const { identifier, app_id, portal = 'student' } = req.body;
     const recoveryAppId = app_id || identifier;
-    const loginAllowed = await isLoginEnabled();
+    const loginAllowed = String(portal).toLowerCase() === 'admin'
+      ? await isAdminLoginEnabled()
+      : await isStudentLoginEnabled();
 
     if (!loginAllowed) {
       return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
@@ -460,14 +565,18 @@ async function forgotPasswordInitiate(req, res) {
 async function forgotPasswordReset(req, res) {
   try {
     const { email, otp, newPassword } = req.body;
-    const loginAllowed = await isLoginEnabled();
-
-    if (!loginAllowed) {
-      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
-    }
 
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP, and New Password are required.' });
+    }
+
+    const targetUser = await db('users').where({ email }).first();
+    const loginAllowed = targetUser && isAdminRole(targetUser.role)
+      ? await isAdminLoginEnabled()
+      : await isStudentLoginEnabled();
+
+    if (!loginAllowed) {
+      return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
     }
 
     const record = await db('otp_codes')
@@ -530,7 +639,7 @@ async function forgotPasswordReset(req, res) {
 async function forgotAppIdInitiate(req, res) {
   try {
     const { email, dob } = req.body;
-    const loginAllowed = await isLoginEnabled();
+    const loginAllowed = await isStudentLoginEnabled();
 
     if (!loginAllowed) {
       return res.status(403).json({ error: 'Login is not available yet. Please check back later.' });
@@ -637,6 +746,7 @@ module.exports = {
   registerInitiate,
   registerVerify,
   login,
+  loginVerify,
   refresh,
   me,
   forgotPasswordInitiate,

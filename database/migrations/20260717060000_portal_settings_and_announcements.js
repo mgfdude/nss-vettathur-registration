@@ -12,6 +12,16 @@ exports.up = async function (knex) {
       description: 'Allow students to edit draft applications and uploads (true/false)'
     },
     {
+      key: 'student_login_enabled',
+      value: 'true',
+      description: 'Allow student login (true/false)'
+    },
+    {
+      key: 'admin_login_enabled',
+      value: 'true',
+      description: 'Allow administrator login (true/false)'
+    },
+    {
       key: 'login_enabled',
       value: 'true',
       description: 'Allow student and admin login (true/false)'
@@ -120,6 +130,8 @@ exports.down = async function (knex) {
   await knex('settings')
     .whereIn('key', [
       'editing_open',
+      'student_login_enabled',
+      'admin_login_enabled',
       'login_enabled',
       'registration_start',
       'editing_deadline',

@@ -1,10 +1,3 @@
-function showAlert(el, message, type = 'danger') {
-  if (!el) return;
-  el.className = `alert alert-${type}`;
-  el.textContent = message;
-  el.style.display = 'flex';
-}
-
 function hideAlert(el) {
   if (el) el.style.display = 'none';
 }
@@ -34,6 +27,8 @@ function setupOtpInput(hiddenInputId, options = {}) {
     if (hiddenInput.value.length === 6 && typeof options.onComplete === 'function') {
       options.onComplete(hiddenInput.value);
     }
+    // Dispatch input event so external listeners (validation) can react to OTP changes
+    try { hiddenInput.dispatchEvent(new Event('input')); } catch (e) { /* ignore */ }
   };
 
   const fillFromString = (value) => {
@@ -95,6 +90,97 @@ function startOtpCountdown(button, seconds = 30) {
   }, 1000);
 }
 
+function promptLoginOtp({ title = 'Verify Login', subtitle = 'Enter the 6-digit OTP sent to your registered email address.', onResend }) {
+  return new Promise((resolve, reject) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-overlay popup-info';
+    overlay.innerHTML = `
+      <div class="popup-card" tabindex="-1">
+        <button type="button" class="popup-close" aria-label="Close">&times;</button>
+        <div class="popup-icon">!</div>
+        <h3>${title}</h3>
+        <div class="popup-message">${subtitle}</div>
+        <div class="otp-input-wrapper" style="margin: 18px 0;">
+          <div class="otp-input-group" data-otp-target="login-otp-modal"></div>
+          <input type="hidden" id="login-otp-modal">
+        </div>
+        <div class="popup-actions" style="justify-content: space-between; gap: 8px;">
+          <button type="button" class="btn btn-secondary popup-resend">Resend OTP</button>
+          <button type="button" class="btn btn-secondary popup-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary popup-confirm">Verify</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    const hiddenInput = overlay.querySelector('#login-otp-modal');
+    const confirmBtn = overlay.querySelector('.popup-confirm');
+    const resendBtn = overlay.querySelector('.popup-resend');
+    const cancelBtn = overlay.querySelector('.popup-cancel');
+    const closeBtn = overlay.querySelector('.popup-close');
+    const dialog = overlay.querySelector('.popup-card');
+
+    const otpInput = setupOtpInput('login-otp-modal');
+    if (otpInput && typeof otpInput.focus === 'function') {
+      otpInput.focus();
+    }
+
+    function cleanup() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      document.removeEventListener('keydown', escHandler);
+    }
+
+    function close(result, canceled = false) {
+      cleanup();
+      if (canceled) {
+        reject(new Error('OTP verification canceled.'));
+      } else {
+        resolve(result);
+      }
+    }
+
+    function escHandler(event) {
+      if (event.key === 'Escape') {
+        close('', true);
+      }
+    }
+
+    document.addEventListener('keydown', escHandler);
+    dialog.focus();
+
+    confirmBtn.addEventListener('click', () => {
+      const value = hiddenInput.value.trim();
+      if (!/^[0-9]{6}$/.test(value)) {
+        Popup.error('Please enter a valid 6-digit OTP.');
+        return;
+      }
+      close(value);
+    });
+
+    cancelBtn.addEventListener('click', () => close('', true));
+    closeBtn.addEventListener('click', () => close('', true));
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) close('', true);
+    });
+
+    if (onResend) {
+      resendBtn.addEventListener('click', async () => {
+        try {
+          Popup.loading('Resending OTP...');
+          await onResend();
+          Popup.closeLoading();
+          Popup.success('OTP resent. Please check your email.', 'OTP sent');
+        } catch (error) {
+          Popup.closeLoading();
+          Popup.error(error.message || 'Could not resend OTP.');
+        }
+      });
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   let loginSubmitting = false;
   const loginForm = document.getElementById('login-form');
@@ -142,32 +228,47 @@ document.addEventListener('DOMContentLoaded', () => {
       const appIdLink = document.getElementById('forgot-app-id-link');
       const adminForgotLink = document.getElementById('admin-forgot-password-link');
 
-      if (!status.loginEnabled) {
+      if (!status.studentLoginEnabled) {
         if (loginForm) {
           loginForm.querySelectorAll('input, button').forEach((element) => {
             element.disabled = true;
           });
         }
+        if (forgotLink) forgotLink.style.display = 'none';
+        if (appIdLink) appIdLink.style.display = 'none';
+        Popup.error('Student login is not available yet. Please check back later.');
+      }
+
+      if (!status.adminLoginEnabled) {
         if (adminLoginForm) {
           adminLoginForm.querySelectorAll('input, button').forEach((element) => {
             element.disabled = true;
           });
         }
-        if (forgotLink) forgotLink.style.display = 'none';
-        if (appIdLink) appIdLink.style.display = 'none';
         if (adminForgotLink) adminForgotLink.style.display = 'none';
-        showAlert(document.getElementById('alert-box'), 'Login is not available yet. Please check back later.');
-      }
-
-      if (!status.loginEnabled && loginForm) {
-        const alertBox = document.getElementById('alert-box');
-        showAlert(alertBox, 'Portal login is Not Enabled. Please try again later.', 'warning');
-        loginForm.querySelectorAll('input, button').forEach((el) => {
-          el.disabled = true;
-        });
+        Popup.warning('Admin login is not available yet. Please check back later.');
       }
     })
     .catch(() => {});
+
+  async function performLogin(appId, password, portal) {
+    const loginResponse = await api.post('/auth/login', { app_id: appId, password, portal });
+    Popup.success(loginResponse.message || 'OTP has been sent to your registered email.', 'OTP sent');
+
+    const otp = await promptLoginOtp({
+      title: portal === 'admin' ? 'Admin Login OTP' : 'Student Login OTP',
+      subtitle: 'Enter the 6-digit code sent to your registered email.',
+      onResend: async () => {
+        await api.post('/auth/login', { app_id: appId, password, portal });
+      }
+    });
+
+    Popup.loading('Verifying OTP...');
+    const verifyResponse = await api.post('/auth/login/verify', { app_id: appId, otp, portal });
+    Popup.closeLoading();
+    auth.setSession(verifyResponse.token, verifyResponse.user);
+    return verifyResponse.user;
+  }
 
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -176,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginSubmitting = true;
       const appId = document.getElementById('app_id').value.trim();
       const password = document.getElementById('password').value;
-      const alertBox = document.getElementById('alert-box');
+      const alertBox = null;
       const submitButton = loginForm.querySelector('button[type="submit"]');
 
       try {
@@ -185,14 +286,16 @@ document.addEventListener('DOMContentLoaded', () => {
           submitButton.disabled = true;
           submitButton.textContent = 'Signing in...';
         }
-        const res = await api.post('/auth/login', { app_id: appId, password, portal: 'student' });
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
-        window.location.href = res.user.role === 'admin' || res.user.role === 'superadmin'
-          ? '/admin.html'
-          : '/dashboard.html';
+
+        const user = await performLogin(appId, password, 'student');
+        window.location.href = auth.getDashboardPath(user);
       } catch (err) {
-        showAlert(alertBox, err.message);
+        if (err.message === 'OTP verification canceled.') {
+          Popup.warning('OTP verification canceled. Please sign in again.', 'Login canceled');
+        } else {
+          Popup.error(err.message || 'An error occurred');
+        }
+      } finally {
         loginSubmitting = false;
         if (submitButton) {
           submitButton.disabled = false;
@@ -209,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginSubmitting = true;
       const appId = document.getElementById('admin_app_id').value.trim();
       const password = document.getElementById('admin_password').value;
-      const alertBox = document.getElementById('alert-box');
+      const alertBox = null;
       const submitButton = adminLoginForm.querySelector('button[type="submit"]');
 
       try {
@@ -218,12 +321,16 @@ document.addEventListener('DOMContentLoaded', () => {
           submitButton.disabled = true;
           submitButton.textContent = 'Signing in...';
         }
-        const res = await api.post('/auth/login', { app_id: appId, password, portal: 'admin' });
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
+
+        const user = await performLogin(appId, password, 'admin');
         window.location.href = '/admin.html';
       } catch (err) {
-        showAlert(alertBox, err.message);
+        if (err.message === 'OTP verification canceled.') {
+          Popup.warning('OTP verification canceled. Please sign in again.', 'Login canceled');
+        } else {
+          Popup.error(err.message || 'An error occurred');
+        }
+      } finally {
         loginSubmitting = false;
         if (submitButton) {
           submitButton.disabled = false;
@@ -236,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const regStep1 = document.getElementById('register-step-1');
   const regStep2 = document.getElementById('register-step-2');
   const regSuccess = document.getElementById('register-success');
-  const alertBox = document.getElementById('alert-box');
+  const alertBox = null;
   const resendBtn = document.getElementById('resend-otp-btn');
   let registrationData = {};
 
@@ -248,14 +355,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Registration form validation: enable submit only when all requirements met
+  const regStep1Submit = document.getElementById('register-step-1-submit');
+  const regStep2Submit = document.getElementById('register-step-2-submit');
+
+  function cleanPhoneInput(value) {
+    return value.replace(/\D/g, '').slice(0, 10);
+  }
+
+  function isStep1Valid() {
+    if (!regStep1) return false;
+    const email = document.getElementById('email').value.trim();
+    const confirmEmail = document.getElementById('confirmEmail').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const confirmPhone = document.getElementById('confirmPhone').value.trim();
+    const dob = document.getElementById('dob').value;
+    const confirmDob = document.getElementById('confirmDob').value;
+
+    if (!email || !confirmEmail || email !== confirmEmail) return false;
+    if (!phone || !confirmPhone) return false;
+    if (phone !== confirmPhone) return false;
+    if (!/^[0-9]{10}$/.test(phone)) return false;
+    if (!dob || !confirmDob || dob !== confirmDob) return false;
+    return true;
+  }
+
+  function validateStep1() {
+    if (regStep1Submit) regStep1Submit.disabled = !isStep1Valid();
+  }
+
+  function isPasswordValid(pw) {
+    if (!pw || pw.length < 8) return false;
+    if (!/[A-Z]/.test(pw)) return false;
+    if (!/[!@#\$%\^&\*\(\)\-_=+\[\]{};:'"\\|,.<>\/?]/.test(pw)) return false;
+    return true;
+  }
+
+  function isStep2Valid() {
+    if (!regStep2) return false;
+    const otp = document.getElementById('otp').value.trim();
+    const pw = document.getElementById('password').value;
+    const cpw = document.getElementById('confirmPassword').value;
+    if (!/^[0-9]{6}$/.test(otp)) return false;
+    if (!isPasswordValid(pw)) return false;
+    if (pw !== cpw) return false;
+    return true;
+  }
+
+  function validateStep2() {
+    if (regStep2Submit) regStep2Submit.disabled = !isStep2Valid();
+  }
+
+  // Attach input listeners for live validation
+  ['email', 'confirmEmail', 'phone', 'confirmPhone', 'dob', 'confirmDob'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', (e) => {
+      if (id === 'phone' || id === 'confirmPhone') {
+        const cleaned = cleanPhoneInput(e.target.value);
+        if (e.target.value !== cleaned) e.target.value = cleaned;
+      }
+      validateStep1();
+    });
+  });
+
+  ['otp', 'password', 'confirmPassword'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => validateStep2());
+  });
+
+
   async function sendRegistrationOtp() {
     Popup.loading('Sending OTP...');
     await api.post('/auth/register/initiate', registrationData);
     Popup.closeLoading();
     startOtpCountdown(resendBtn);
     registrationOtp && registrationOtp.focus();
-    showAlert(alertBox, 'An OTP has been sent to your registered email.', 'success');
-    Popup.toast('OTP sent to your registered email.', 'success');
+    Popup.success('An OTP has been sent to your registered email.', 'OTP sent');
   }
 
   if (regStep1) {
@@ -283,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await sendRegistrationOtp();
       } catch (err) {
         Popup.closeLoading();
-        showAlert(alertBox, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -294,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideAlert(alertBox);
         await sendRegistrationOtp();
       } catch (err) {
-        showAlert(alertBox, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -322,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Popup.success('Your NSS registration has been completed successfully.', 'Registration complete');
       } catch (err) {
         Popup.closeLoading();
-        showAlert(alertBox, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -416,10 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
         forgotStep1.style.display = 'none';
         document.getElementById('forgot-subtext').textContent = 'Enter the OTP sent to your registered email and configure a new password.';
         forgotStep2.style.display = 'block';
-        showAlert(forgotAlert, 'OTP sent to the registered email for this Application ID.', 'success');
+        Popup.success('OTP sent to the registered email for this Application ID.', 'OTP sent');
       } catch (err) {
         Popup.closeLoading();
-        showAlert(forgotAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -433,10 +610,10 @@ document.addEventListener('DOMContentLoaded', () => {
         adminForgotStep1.style.display = 'none';
         document.getElementById('admin-forgot-subtext').textContent = 'Enter the OTP sent to the recovery inbox and configure a new password.';
         adminForgotStep2.style.display = 'block';
-        showAlert(adminForgotAlert, 'OTP sent for administrator recovery.', 'success');
+        Popup.success('OTP sent for administrator recovery.', 'OTP sent');
       } catch (err) {
         Popup.closeLoading();
-        showAlert(adminForgotAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -446,9 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         hideAlert(forgotAlert);
         await sendForgotPasswordOtp();
-        showAlert(forgotAlert, 'A fresh OTP has been sent.', 'success');
+        Popup.success('A fresh OTP has been sent.', 'OTP sent');
       } catch (err) {
-        showAlert(forgotAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -461,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const newPassword = document.getElementById('forgot-new-pass').value;
       const confirmPassword = document.getElementById('forgot-confirm-pass').value;
       if (newPassword !== confirmPassword) {
-        showAlert(forgotAlert, 'Passwords do not match.');
+        Popup.error('Passwords do not match.');
         return;
       }
 
@@ -473,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
           newPassword
         });
 
-        showAlert(forgotAlert, 'Password reset successful. You can now sign in.', 'success');
+        Popup.success('Password reset successful. You can now sign in.', 'Reset complete');
         Popup.closeLoading();
         Popup.success('Your password has been changed. Please sign in again.', 'Password changed');
         setTimeout(() => {
@@ -481,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1800);
       } catch (err) {
         Popup.closeLoading();
-        showAlert(forgotAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -494,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const newPassword = document.getElementById('admin-forgot-new-pass').value;
       const confirmPassword = document.getElementById('admin-forgot-confirm-pass').value;
       if (newPassword !== confirmPassword) {
-        showAlert(adminForgotAlert, 'Passwords do not match.');
+        Popup.error('Passwords do not match.');
         return;
       }
 
@@ -505,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
           otp: document.getElementById('admin-forgot-otp').value.trim(),
           newPassword
         });
-        showAlert(adminForgotAlert, 'Administrator password reset successful.', 'success');
+        Popup.success('Administrator password reset successful.', 'Reset complete');
         Popup.closeLoading();
         Popup.success('Admin password changed successfully.', 'Password changed');
         setTimeout(() => {
@@ -513,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1800);
       } catch (err) {
         Popup.closeLoading();
-        showAlert(adminForgotAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -573,10 +750,10 @@ document.addEventListener('DOMContentLoaded', () => {
         appIdStep1.style.display = 'none';
         appIdStep2.style.display = 'block';
         document.getElementById('app-id-subtext').textContent = 'Enter the OTP sent to your registered email.';
-        showAlert(appIdAlert, 'OTP sent if the email and date of birth match our records.', 'success');
+        Popup.success('OTP sent if the email and date of birth match our records.', 'OTP sent');
       } catch (err) {
         Popup.closeLoading();
-        showAlert(appIdAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -586,9 +763,9 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         hideAlert(appIdAlert);
         await sendAppIdOtp();
-        showAlert(appIdAlert, 'A fresh OTP has been sent.', 'success');
+        Popup.success('A fresh OTP has been sent.', 'OTP sent');
       } catch (err) {
-        showAlert(appIdAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }
@@ -611,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Popup.success('Your Application ID has been recovered.', 'Recovery complete');
       } catch (err) {
         Popup.closeLoading();
-        showAlert(appIdAlert, err.message);
+        Popup.error(err.message || 'An error occurred');
       }
     });
   }

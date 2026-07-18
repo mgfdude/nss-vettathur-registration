@@ -20,6 +20,7 @@ router.post(
   authController.registerVerify
 );
 router.post('/login', loginAttemptLimiter, authController.login);
+router.post('/login/verify', authController.loginVerify);
 router.post('/refresh', authController.refresh);
 router.get('/me', authenticateToken, authController.me);
 router.post('/forgot-password/initiate', otpRateLimiter, authController.forgotPasswordInitiate);

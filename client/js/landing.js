@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!res.ok) throw new Error(data.error || 'Failed to load portal status.');
       return data;
     });
-    setLoginAvailability(status.loginEnabled);
+    setLoginAvailability(status.studentLoginEnabled);
     renderPortalStatus(status);
   } catch (error) {
     const badges = document.getElementById('hero-status-badges');

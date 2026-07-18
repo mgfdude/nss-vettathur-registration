@@ -14,6 +14,8 @@ exports.seed = async function(knex) {
     { key: 'registration_start', value: '2026-07-01T00:00:00Z', description: 'Registration start date (ISO UTC)' },
     { key: 'editing_open', value: 'true', description: 'Allow students to edit draft applications and uploads (true/false)' },
     { key: 'editing_deadline', value: '2026-08-31T23:59:59Z', description: 'Deadline for application editing (ISO UTC)' },
+    { key: 'student_login_enabled', value: 'true', description: 'Allow student login (true/false)' },
+    { key: 'admin_login_enabled', value: 'true', description: 'Allow administrator login (true/false)' },
     { key: 'login_enabled', value: 'true', description: 'Allow student and admin login (true/false)' },
     { key: 'selection_open', value: 'false', description: 'Are selection results visible to students (true/false)' },
     { key: 'result_date', value: '2026-09-15T00:00:00Z', description: 'Expected or published result date (ISO UTC)' },

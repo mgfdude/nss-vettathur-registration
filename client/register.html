@@ -34,7 +34,7 @@
         <p>Step 1 of 3: Verification Details</p>
       </div>
 
-      <div id="alert-box" class="alert alert-danger" style="display: none;"></div>
+      
 
       <!-- Step 1 Form -->
       <form id="register-step-1">
@@ -52,11 +52,11 @@
         <div class="form-row">
           <div class="form-group">
             <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" required placeholder="10-digit number">
+            <input type="tel" id="phone" required placeholder="10-digit number" inputmode="numeric" pattern="[0-9]{10}" maxlength="10">
           </div>
           <div class="form-group">
             <label for="confirmPhone">Confirm Phone</label>
-            <input type="tel" id="confirmPhone" required placeholder="10-digit number">
+            <input type="tel" id="confirmPhone" required placeholder="10-digit number" inputmode="numeric" pattern="[0-9]{10}" maxlength="10">
           </div>
         </div>
 
@@ -71,7 +71,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">Continue</button>
+        <button type="submit" class="btn btn-primary btn-block" disabled id="register-step-1-submit">Continue</button>
       </form>
 
       <!-- Step 2 Form (OTP Screen) -->
@@ -95,7 +95,7 @@
           <label for="confirmPassword">Confirm Password</label>
           <input type="password" id="confirmPassword" required placeholder="Repeat your password">
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Complete Registration</button>
+        <button type="submit" class="btn btn-primary btn-block" disabled id="register-step-2-submit">Complete Registration</button>
       </form>
 
       <!-- Step 3 (Success Screen) -->

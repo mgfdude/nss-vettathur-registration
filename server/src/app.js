@@ -101,6 +101,110 @@ async function init() {
     console.log(`NSS Portal Server running on http://localhost:${config.port}`);
     console.log(`Environment: ${config.nodeEnv}`);
     console.log(`==================================================`);
+    setupConsoleCommands();
+  });
+}
+
+function setupConsoleCommands() {
+  if (!process.stdin.isTTY) {
+    console.log('Console commands disabled: stdin is not a TTY.');
+    return;
+  }
+
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
+
+  console.log('Console command mode enabled. Type "help" for commands.');
+
+  function formatTimestamp(value) {
+    if (!value) return 'never';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return `date = ${date.toLocaleDateString('en-GB')} time = ${date.toLocaleTimeString('en-GB')}`;
+  }
+
+  process.stdin.on('data', async (input) => {
+    const text = String(input).trim();
+    if (!text) return;
+
+    const [command, ...args] = text.split(/\s+/);
+    try {
+      switch (command.toLowerCase()) {
+        case 'help':
+          console.log('Available commands:');
+          console.log('  help                 - show this help');
+          console.log('  catch <NSS_UID>      - show status for a specific user app_id');
+          console.log('  techora              - show all active users');
+          console.log('  active               - same as techora');
+          console.log('  inactive             - show all inactive users');
+          console.log('  exit                 - stop the server process');
+          break;
+
+        case 'catch': {
+          const appId = args.join(' ');
+          if (!appId) {
+            console.log('Usage: catch <NSS_UID>');
+            break;
+          }
+          const user = await db('users').where({ app_id: appId }).first();
+          if (!user) {
+            console.log(`User not found: ${appId}`);
+            break;
+          }
+          console.log('User status:');
+          console.log(`  id: ${user.id}`);
+          console.log(`  app_id: ${user.app_id}`);
+          console.log(`  email: ${user.email}`);
+          console.log(`  role: ${user.role}`);
+          console.log(`  is_active: ${user.is_active}`);
+          console.log(`  failed_login_attempts: ${user.failed_login_attempts}`);
+          console.log(`  locked_until: ${formatTimestamp(user.locked_until)}`);
+          console.log(`  last_login: ${formatTimestamp(user.last_login)}`);
+          console.log(`  last_login_at: ${formatTimestamp(user.last_login_at)}`);
+          console.log(`  last_login_ip: ${user.last_login_ip}`);
+          console.log(`  created_at: ${formatTimestamp(user.created_at)}`);
+          console.log(`  updated_at: ${formatTimestamp(user.updated_at)}`);
+          break;
+        }
+
+        case 'techora':
+        case 'active': {
+          const users = await db('users').where({ is_active: true }).orderBy('app_id', 'asc').select('id', 'app_id', 'email', 'role', 'last_login_at');
+          if (!users.length) {
+            console.log('No active users found.');
+            break;
+          }
+          console.log(`Active users (${users.length}):`);
+          users.forEach((user) => {
+            console.log(`  ${user.app_id} | ${user.role} | last_login_at=${formatTimestamp(user.last_login_at)} | email=${user.email}`);
+          });
+          break;
+        }
+
+        case 'inactive': {
+          const users = await db('users').where({ is_active: false }).orderBy('app_id', 'asc').select('id', 'app_id', 'email', 'role', 'last_login_at');
+          if (!users.length) {
+            console.log('No inactive users found.');
+            break;
+          }
+          console.log(`Inactive users (${users.length}):`);
+          users.forEach((user) => {
+            console.log(`  ${user.app_id} | ${user.role} | last_login_at=${formatTimestamp(user.last_login_at)} | email=${user.email}`);
+          });
+          break;
+        }
+
+        case 'exit':
+          console.log('Shutting down server...');
+          process.exit(0);
+          break;
+
+        default:
+          console.log(`Unknown command: ${command}. Type "help" for a list of commands.`);
+      }
+    } catch (err) {
+      console.error('Console command error:', err);
+    }
   });
 }
 

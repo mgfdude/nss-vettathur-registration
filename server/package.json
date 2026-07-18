@@ -12,6 +12,7 @@
     "seed:run": "knex seed:run --knexfile knexfile.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -20,7 +21,9 @@
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
     "multer": "^1.4.5-lts.1",
+    "node-verhoeff": "^0.0.11",
     "nodemailer": "^6.9.13",
+    "pg": "^8.22.0",
     "sqlite3": "^5.1.7"
   }
 }

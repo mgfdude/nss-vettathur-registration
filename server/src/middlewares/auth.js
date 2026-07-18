@@ -20,6 +20,11 @@ async function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 
+  const requestTabId = req.headers['x-session-tab'];
+  if (!requestTabId || decoded.tabId !== requestTabId) {
+    return res.status(401).json({ error: 'Session invalid for this browser tab.' });
+  }
+
   // Fetch fresh user data to verify status
   const user = await db('users').where({ id: decoded.id }).first();
   if (!user || !user.is_active) {

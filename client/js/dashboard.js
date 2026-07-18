@@ -592,16 +592,22 @@ function escapeHtml(value) {
 
 async function fetchProtectedDataUrl(url) {
   async function fetchBlob() {
+    const sessionTabId = sessionStorage.getItem('sessionTabId');
+    const headers = auth.getToken() ? { Authorization: `Bearer ${auth.getToken()}` } : {};
+    if (sessionTabId) headers['X-Session-Tab'] = sessionTabId;
+
     const response = await fetch(url, {
       credentials: 'include',
-      headers: auth.getToken() ? { Authorization: `Bearer ${auth.getToken()}` } : {}
+      headers
     });
 
     if ((response.status === 401 || response.status === 403)) {
       await auth.refreshSession();
+      const retryHeaders = auth.getToken() ? { Authorization: `Bearer ${auth.getToken()}` } : {};
+      if (sessionTabId) retryHeaders['X-Session-Tab'] = sessionTabId;
       return fetch(url, {
         credentials: 'include',
-        headers: auth.getToken() ? { Authorization: `Bearer ${auth.getToken()}` } : {}
+        headers: retryHeaders
       });
     }
 
@@ -766,7 +772,7 @@ async function prepareApplicationPrintout() {
       api.get('/student/application'),
       api.get('/student/dashboard')
     ]);
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const printUser = {
       app_id: user.app_id || 'NSS-APPLICATION',
       email: dashboard.email || user.email || '',
@@ -820,7 +826,7 @@ function printPreparedApplication() {
 
 function downloadPreparedApplication() {
   if (!latestPrintableApplicationHtml) return;
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   const filename = `NSS_Application_${(user.app_id || 'student').replace(/[^A-Za-z0-9_-]/g, '_')}.html`;
   const blob = new Blob([latestPrintableApplicationHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);

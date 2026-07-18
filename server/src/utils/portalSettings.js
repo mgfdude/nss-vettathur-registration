@@ -51,9 +51,16 @@ async function isEditingOpen() {
   return true;
 }
 
-async function isLoginEnabled() {
-  const settings = await getSettingsMap(['login_enabled']);
-  // Default to enabled if key is missing (legacy DBs)
+async function isStudentLoginEnabled() {
+  const settings = await getSettingsMap(['student_login_enabled', 'login_enabled']);
+  if (settings.student_login_enabled !== undefined) return isTruthy(settings.student_login_enabled);
+  if (settings.login_enabled === undefined) return true;
+  return isTruthy(settings.login_enabled);
+}
+
+async function isAdminLoginEnabled() {
+  const settings = await getSettingsMap(['admin_login_enabled', 'login_enabled']);
+  if (settings.admin_login_enabled !== undefined) return isTruthy(settings.admin_login_enabled);
   if (settings.login_enabled === undefined) return true;
   return isTruthy(settings.login_enabled);
 }
@@ -79,6 +86,8 @@ async function getPublicPortalStatus() {
     'registration_deadline',
     'editing_open',
     'editing_deadline',
+    'student_login_enabled',
+    'admin_login_enabled',
     'login_enabled',
     'selection_open',
     'result_date',
@@ -91,7 +100,12 @@ async function getPublicPortalStatus() {
 
   const registrationOpen = await isRegistrationOpen();
   const editingOpen = await isEditingOpen();
-  const loginEnabled = settings.login_enabled === undefined ? true : isTruthy(settings.login_enabled);
+  const studentLoginEnabled = settings.student_login_enabled === undefined
+    ? (settings.login_enabled === undefined ? true : isTruthy(settings.login_enabled))
+    : isTruthy(settings.student_login_enabled);
+  const adminLoginEnabled = settings.admin_login_enabled === undefined
+    ? (settings.login_enabled === undefined ? true : isTruthy(settings.login_enabled))
+    : isTruthy(settings.admin_login_enabled);
   const selectionOpen = isTruthy(settings.selection_open);
 
   let announcements = [];
@@ -107,10 +121,14 @@ async function getPublicPortalStatus() {
     announcements = [];
   }
 
+  const statusLog = `registrationOpen=${registrationOpen} studentLoginEnabled=${studentLoginEnabled} adminLoginEnabled=${adminLoginEnabled} editingOpen=${editingOpen} selectionOpen=${selectionOpen}`;
+  console.log(`[PortalStatus] ${statusLog}`);
+
   return {
     registrationOpen,
     editingOpen,
-    loginEnabled,
+    studentLoginEnabled,
+    adminLoginEnabled,
     selectionOpen,
     dates: {
       registrationStart: settings.registration_start || null,
@@ -135,7 +153,8 @@ module.exports = {
   isTruthy,
   isRegistrationOpen,
   isEditingOpen,
-  isLoginEnabled,
+  isStudentLoginEnabled,
+  isAdminLoginEnabled,
   isSelectionOpen,
   getPublicPortalStatus
 };
